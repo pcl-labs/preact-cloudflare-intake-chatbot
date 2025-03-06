@@ -94,6 +94,349 @@ npm run build
 
 This builds the app for production, emitting to `dist/`. It prerenders the app to static HTML for SEO benefits.
 
+## 🔌 Integration
+
+The Preact Chat component can be easily integrated into various platforms and frameworks.
+
+### Web Component Usage
+
+The easiest way to use Preact Chat in any web project is through our Web Component. This approach works in any modern browser without any framework requirements.
+
+#### Installation
+
+Add the script to your HTML:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/preact-chat@latest/dist/embed/preact-chat.js"></script>
+```
+
+#### Basic Usage
+
+Add the chat element to your HTML:
+
+```html
+<preact-chat></preact-chat>
+```
+
+#### Configuring the Component
+
+The Web Component accepts various attributes for customization:
+
+```html
+<preact-chat
+  theme="dark"
+  api-url="https://your-api.com/chat"
+  placeholder="Ask me anything..."
+  height="500px"
+  show-audio
+  show-files
+  enable-markdown
+></preact-chat>
+```
+
+### WordPress Integration
+
+#### Using the Plugin
+
+1. Download the Preact Chat WordPress plugin from the repository
+2. Install and activate it in your WordPress admin
+3. Use the shortcode `[preact_chat]` to add the chat interface to any post or page
+
+#### Shortcode Usage
+
+Basic usage:
+```
+[preact_chat]
+```
+
+With attributes:
+```
+[preact_chat theme="dark" api_url="https://your-api.com/chat" height="400px"]
+```
+
+#### Gutenberg Block
+
+If you're using the WordPress Block Editor (Gutenberg), you can also add the Preact Chat block from the block library.
+
+### Shopify Integration
+
+#### As a Theme Section
+
+Add this code to your theme's `sections` folder as `preact-chat.liquid`:
+
+```liquid
+<div id="preact-chat-container" class="preact-chat-container">
+  <preact-chat
+    theme="{{ section.settings.theme }}"
+    {% if section.settings.api_url != blank %}api-url="{{ section.settings.api_url }}"{% endif %}
+    placeholder="{{ section.settings.placeholder }}"
+    height="{{ section.settings.height }}"
+    {% if section.settings.show_audio %}show-audio{% endif %}
+    {% if section.settings.show_files %}show-files{% endif %}
+  ></preact-chat>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/preact-chat@latest/dist/embed/preact-chat.js" defer></script>
+
+{% schema %}
+{
+  "name": "Chat Interface",
+  "settings": [
+    {
+      "type": "select",
+      "id": "theme",
+      "label": "Theme",
+      "options": [
+        {"value": "light", "label": "Light"},
+        {"value": "dark", "label": "Dark"},
+        {"value": "auto", "label": "Auto (System)"}
+      ],
+      "default": "auto"
+    },
+    {
+      "type": "text",
+      "id": "api_url",
+      "label": "API URL (optional)"
+    },
+    {
+      "type": "text",
+      "id": "placeholder",
+      "label": "Placeholder text",
+      "default": "Type a message..."
+    },
+    {
+      "type": "text",
+      "id": "height",
+      "label": "Height",
+      "default": "500px"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_audio",
+      "label": "Enable audio recording",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_files",
+      "label": "Enable file attachments",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "Chat Interface",
+      "category": "Interactive"
+    }
+  ]
+}
+{% endschema %}
+```
+
+### React Integration
+
+#### Installation
+
+```bash
+npm install preact-chat-react
+```
+
+#### Basic Usage
+
+```jsx
+import React from 'react';
+import PreactChat from 'preact-chat-react';
+
+function App() {
+  const handleMessage = (message, files) => {
+    console.log('New message:', message, files);
+    // Process the message, e.g. send to your API
+  };
+
+  return (
+    <div className="app">
+      <h1>My Chat App</h1>
+      <PreactChat 
+        theme="dark"
+        apiUrl="https://your-api.com/chat"
+        onMessage={handleMessage}
+        height="500px"
+      />
+    </div>
+  );
+}
+
+export default App;
+```
+
+### Vue Integration
+
+#### Installation
+
+```bash
+npm install preact-chat-vue
+```
+
+#### Basic Usage
+
+```vue
+<template>
+  <div class="app">
+    <h1>My Chat App</h1>
+    <preact-chat
+      theme="dark"
+      :api-url="apiUrl"
+      @message="handleMessage"
+    ></preact-chat>
+  </div>
+</template>
+
+<script>
+import { defineComponent } from 'vue';
+import PreactChat from 'preact-chat-vue';
+
+export default defineComponent({
+  components: {
+    PreactChat
+  },
+  data() {
+    return {
+      apiUrl: 'https://your-api.com/chat'
+    };
+  },
+  methods: {
+    handleMessage(event) {
+      console.log('New message:', event.message, event.files);
+      // Process the message
+    }
+  }
+});
+</script>
+```
+
+### Angular Integration
+
+#### Installation
+
+```bash
+npm install preact-chat-angular
+```
+
+#### Module Setup
+
+```typescript
+// app.module.ts
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+import { PreactChatModule } from 'preact-chat-angular';
+
+import { AppComponent } from './app.component';
+
+@NgModule({
+  declarations: [AppComponent],
+  imports: [BrowserModule, PreactChatModule],
+  bootstrap: [AppComponent],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA] // Needed for Web Components
+})
+export class AppModule {}
+```
+
+#### Component Usage
+
+```typescript
+// app.component.ts
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <div class="app">
+      <h1>My Chat App</h1>
+      <preact-chat
+        theme="dark"
+        [apiUrl]="apiUrl"
+        (message)="handleMessage($event)"
+      ></preact-chat>
+    </div>
+  `
+})
+export class AppComponent {
+  apiUrl = 'https://your-api.com/chat';
+
+  handleMessage(event: CustomEvent) {
+    console.log('New message:', event.detail.message, event.detail.files);
+    // Process the message
+  }
+}
+```
+
+### Advanced Configuration
+
+#### API Reference
+
+| Attribute | Type | Description | Default |
+|-----------|------|-------------|---------|
+| theme | 'light' \| 'dark' \| 'auto' | Color theme of the chat interface | 'auto' |
+| api-url | string | URL to send messages to | '' |
+| welcome-message | string | Initial message shown in the chat | '' |
+| placeholder | string | Placeholder text for the input | 'Type a message...' |
+| show-audio | boolean | Enable audio recording | true |
+| show-files | boolean | Enable file attachments | true |
+| enable-markdown | boolean | Enable markdown rendering | true |
+| height | string | Height of the chat container | '600px' |
+
+#### Events
+
+The Web Component emits custom events:
+
+- `message`: Fired when a user sends a message
+- `error`: Fired when an error occurs
+- `file-upload`: Fired when a user uploads a file
+- `recording-start`: Fired when audio recording starts
+- `recording-end`: Fired when audio recording ends
+
+#### Event Handlers
+
+```javascript
+// Get the chat element
+const chatElement = document.querySelector('preact-chat');
+
+// Listen for messages
+chatElement.addEventListener('message', (event) => {
+  console.log('Message sent:', event.detail.message);
+  console.log('Files:', event.detail.files);
+  
+  // Send to your API and get a response
+  fetch('https://your-api.com/chat', {
+    method: 'POST',
+    body: JSON.stringify({
+      message: event.detail.message,
+      files: event.detail.files
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Add response to the chat
+    chatElement.addMessage({
+      content: data.response,
+      isUser: false
+    });
+  });
+});
+```
+
+#### Manual Installation (No CDN)
+
+If you prefer not to use the CDN, you can download the files and host them yourself:
+
+1. Download the latest release from the repository
+2. Host the `preact-chat.js` file on your server
+3. Include it in your HTML:
+
+```html
+<script src="/path/to/your/preact-chat.js"></script>
+```
+
 ## 🌩️ Deployment
 
 ### Cloudflare Pages
@@ -128,6 +471,14 @@ See [todo.md](./todo.md) for the development roadmap and upcoming features.
 - `src/utils/` — Utility functions and helpers
 - `src/index.tsx` — Main application entry point
 - `src/style.css` — Global styling
+
+## 👥 Contributing
+
+We welcome contributions from the community! Whether it's bug fixes, feature additions, or documentation improvements, your help is appreciated.
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on how to contribute to this project.
+
+By contributing, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## 📄 License
 
