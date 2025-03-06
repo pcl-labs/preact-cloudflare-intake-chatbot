@@ -398,9 +398,24 @@ export function App() {
 	return (
 		<>
 			{isDragging && (
-				<div className="drag-overlay">
+				<div 
+					className="drag-overlay" 
+					role="dialog"
+					aria-label="File upload"
+					aria-modal="true"
+				>
 					<div className="drag-message">
-						<svg className="drag-message-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<svg 
+							className="drag-message-icon" 
+							xmlns="http://www.w3.org/2000/svg" 
+							viewBox="0 0 24 24" 
+							fill="none" 
+							stroke="currentColor" 
+							stroke-width="2" 
+							stroke-linecap="round" 
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
 							<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
 							<path d="M12 12v9"></path>
 							<path d="m16 16-4-4-4 4"></path>
@@ -411,27 +426,28 @@ export function App() {
 				</div>
 			)}
 		
-			<div className="chat-container">
+			<div className="chat-container" role="application" aria-label="Chat interface">
 				<ErrorBoundary>
 					<IntroductionPanel isOpen={showIntro} onClose={handleCloseIntro} />
 					<main className="chat-main">
 						<VirtualMessageList messages={messages} isLoading={isLoading} />
-						<div className="input-area">
+						<div className="input-area" role="form" aria-label="Message composition">
 							<div className="input-container">
 								{previewFiles.length > 0 && (
-									<div className="input-preview">
+									<div className="input-preview" role="list" aria-label="File attachments">
 										{previewFiles.map((file, index) => (
 											<div 
 												className={`input-preview-item ${file.type.startsWith('image/') ? 'image-preview' : 'file-preview'}`}
 												key={index}
+												role="listitem"
 											>
 												{file.type.startsWith('image/') ? (
 													<>
-														<img src={file.url} alt={file.name} />
+														<img src={file.url} alt={`Preview of ${file.name}`} />
 													</>
 												) : (
 													<>
-														<div className="file-thumbnail">
+														<div className="file-thumbnail" aria-hidden="true">
 															{getFileIcon(file)}
 														</div>
 														<div className="file-info">
@@ -445,8 +461,9 @@ export function App() {
 													className="input-preview-remove"
 													onClick={() => removePreviewFile(index)}
 													title="Remove file"
+													aria-label={`Remove ${file.name}`}
 												>
-													<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+													<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
 														<path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
 													</svg>
 												</button>
@@ -462,7 +479,14 @@ export function App() {
 									onInput={handleInputChange}
 									onKeyPress={handleKeyPress}
 									disabled={isLoading}
+									aria-label="Message input"
+									aria-multiline="true"
+									aria-required="false"
+									aria-describedby="input-instructions"
 								/>
+								<span id="input-instructions" className="sr-only">
+									Type your message and press Enter to send. Use the buttons below to attach files or record audio.
+								</span>
 								<div className="input-controls-row">
 									<div className="input-controls">
 										{!isRecording && (
@@ -485,11 +509,13 @@ export function App() {
 													type="button"
 													onClick={handleSubmit}
 													disabled={(!inputValue.trim() && previewFiles.length === 0) || isLoading}
+													aria-label={(!inputValue.trim() && previewFiles.length === 0) ? "Send message (disabled)" : "Send message"}
 												>
 													<svg
 														viewBox="0 0 24 24"
 														className="send-icon"
 														xmlns="http://www.w3.org/2000/svg"
+														aria-hidden="true"
 													>
 														{(!inputValue.trim() && previewFiles.length === 0) ? (
 															// Paper plane icon when nothing to send

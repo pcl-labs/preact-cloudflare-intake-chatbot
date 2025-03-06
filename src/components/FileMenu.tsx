@@ -20,6 +20,8 @@ const FileMenu: FunctionComponent<FileMenuProps> = ({
     const menuRef = useRef<HTMLDivElement>(null);
     const photoInputRef = useRef<HTMLInputElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const firstMenuItemRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         setIsBrowser(true);
@@ -36,10 +38,48 @@ const FileMenu: FunctionComponent<FileMenuProps> = ({
 
         if (isOpen) {
             document.addEventListener('click', handleClickOutside);
+            // Focus the first menu item when menu opens
+            setTimeout(() => {
+                firstMenuItemRef.current?.focus();
+            }, 10);
         }
 
         return () => {
             document.removeEventListener('click', handleClickOutside);
+        };
+    }, [isOpen, isBrowser]);
+
+    // Handle keyboard navigation
+    useEffect(() => {
+        if (!isBrowser || !isOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+                triggerRef.current?.focus();
+            } else if (event.key === 'Tab' && !event.shiftKey) {
+                const menuItems = menuRef.current?.querySelectorAll('button.file-menu-item');
+                const lastItem = menuItems?.[menuItems.length - 1];
+                
+                if (document.activeElement === lastItem) {
+                    event.preventDefault();
+                    firstMenuItemRef.current?.focus();
+                }
+            } else if (event.key === 'Tab' && event.shiftKey) {
+                const menuItems = menuRef.current?.querySelectorAll('button.file-menu-item');
+                const firstItem = menuItems?.[0];
+                
+                if (document.activeElement === firstItem) {
+                    event.preventDefault();
+                    const lastItem = menuItems?.[menuItems.length - 1] as HTMLButtonElement;
+                    lastItem?.focus();
+                }
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
         };
     }, [isOpen, isBrowser]);
 
@@ -123,38 +163,62 @@ const FileMenu: FunctionComponent<FileMenuProps> = ({
     };
 
     return (
-        <div class="file-menu" ref={menuRef}>
+        <div className="file-menu" ref={menuRef}>
             <button
                 type="button"
-                class="file-menu-trigger"
+                className="file-menu-trigger"
                 onClick={() => setIsOpen(!isOpen)}
                 title="Add attachment"
+                aria-label="Open file attachment menu"
+                aria-haspopup="true"
+                aria-expanded={isOpen}
+                ref={triggerRef}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="file-menu-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="file-menu-icon" aria-hidden="true">
                     <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                 </svg>
             </button>
             
             {(isOpen || isClosing) && (
-                <div class={`file-menu-dropdown ${isClosing ? 'closing' : ''}`}>
-                    <button type="button" class="file-menu-item" onClick={handlePhotoClick}>
+                <div 
+                    className={`file-menu-dropdown ${isClosing ? 'closing' : ''}`}
+                    role="menu"
+                    aria-labelledby="attachment-menu"
+                >
+                    <button 
+                        type="button" 
+                        className="file-menu-item" 
+                        onClick={handlePhotoClick}
+                        role="menuitem"
+                        ref={firstMenuItemRef}
+                    >
                         <span>Attach photos</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
                             <path fill="currentColor" d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
                         </svg>
                     </button>
                     
-                    <button type="button" class="file-menu-item" onClick={handleCameraClick}>
+                    <button 
+                        type="button" 
+                        className="file-menu-item" 
+                        onClick={handleCameraClick}
+                        role="menuitem"
+                    >
                         <span>Take Photo</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
                             <path fill="currentColor" d="M12 15.2a3.2 3.2 0 100-6.4 3.2 3.2 0 000 6.4z"/>
                             <path fill="currentColor" d="M9 3L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
                         </svg>
                     </button>
                     
-                    <button type="button" class="file-menu-item" onClick={handleFileClick}>
+                    <button 
+                        type="button" 
+                        className="file-menu-item" 
+                        onClick={handleFileClick}
+                        role="menuitem"
+                    >
                         <span>Attach files</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
                             <path fill="currentColor" d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
                         </svg>
                     </button>
@@ -164,18 +228,22 @@ const FileMenu: FunctionComponent<FileMenuProps> = ({
             <input
                 type="file"
                 ref={photoInputRef}
-                class="file-input"
+                className="file-input"
                 accept="image/*"
                 multiple
                 onChange={handlePhotoChange}
+                aria-hidden="true"
+                tabIndex={-1}
             />
             <input
                 type="file"
                 ref={fileInputRef}
-                class="file-input"
+                className="file-input"
                 accept="application/pdf,text/plain,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/*"
                 multiple
                 onChange={handleFileChange}
+                aria-hidden="true"
+                tabIndex={-1}
             />
             
             <CameraModal

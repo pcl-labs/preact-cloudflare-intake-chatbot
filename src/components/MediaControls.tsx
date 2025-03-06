@@ -12,6 +12,7 @@ const MediaControls: FunctionComponent<MediaControlsProps> = ({
 	onRecordingStateChange 
 }) => {
 	const [isRecording, setIsRecording] = useState(false);
+	const [permissionDenied, setPermissionDenied] = useState(false);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const mediaStreamRef = useRef<MediaStream | null>(null);
 	const chunksRef = useRef<Blob[]>([]);
@@ -37,6 +38,7 @@ const MediaControls: FunctionComponent<MediaControlsProps> = ({
 
 	const startRecording = async () => {
 		try {
+			setPermissionDenied(false);
 			const constraints = {
 				audio: true,
 				video: false
@@ -59,6 +61,18 @@ const MediaControls: FunctionComponent<MediaControlsProps> = ({
 		} catch (error) {
 			console.error('Error accessing media devices:', error);
 			setIsRecording(false);
+			setPermissionDenied(true);
+			// Announce the error for screen readers
+			if (typeof document !== 'undefined') {
+				const errorMessage = document.createElement('div');
+				errorMessage.setAttribute('role', 'alert');
+				errorMessage.classList.add('sr-only');
+				errorMessage.textContent = 'Microphone access denied. Please check your browser permissions.';
+				document.body.appendChild(errorMessage);
+				setTimeout(() => {
+					document.body.removeChild(errorMessage);
+				}, 5000);
+			}
 		}
 	};
 
@@ -100,9 +114,18 @@ const MediaControls: FunctionComponent<MediaControlsProps> = ({
 		stopRecording(true);
 	};
 
+	const handleKeyDown = (e: KeyboardEvent) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			if (!isRecording) {
+				startRecording();
+			}
+		}
+	};
+
 	if (isRecording) {
 		return (
-			<div class="media-controls recording">
+			<div className="media-controls recording" role="region" aria-label="Audio recording controls">
 				<AudioRecordingUI
 					isRecording={isRecording}
 					onCancel={handleCancelRecording}
@@ -113,21 +136,26 @@ const MediaControls: FunctionComponent<MediaControlsProps> = ({
 	}
 
 	return (
-		<div class="media-controls">
+		<div className="media-controls" role="region" aria-label="Audio recording">
 			<button
 				type="button"
-				class="media-button"
+				className="media-button"
 				onClick={() => {
 					if (!isRecording) {
 						startRecording();
 					}
 				}}
+				onKeyDown={handleKeyDown}
 				title="Record audio"
+				aria-label="Record audio message"
+				aria-pressed={isRecording}
+				disabled={permissionDenied}
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 24 24"
-					class="media-icon"
+					className="media-icon"
+					aria-hidden="true"
 				>
 					<path
 						fill="currentColor"
@@ -139,6 +167,11 @@ const MediaControls: FunctionComponent<MediaControlsProps> = ({
 					/>
 				</svg>
 			</button>
+			{permissionDenied && (
+				<div className="sr-only" role="alert">
+					Microphone access denied. Please check your browser permissions.
+				</div>
+			)}
 		</div>
 	);
 };

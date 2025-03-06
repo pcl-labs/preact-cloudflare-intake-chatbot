@@ -17,10 +17,40 @@ const AudioRecordingUI: FunctionComponent<AudioRecordingUIProps> = ({
     const timerRef = useRef<number>();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationFrameRef = useRef<number>();
+    const confirmBtnRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         setIsBrowser(true);
     }, []);
+
+    // Focus the confirm button when recording starts
+    useEffect(() => {
+        if (isBrowser && isRecording) {
+            setTimeout(() => {
+                confirmBtnRef.current?.focus();
+            }, 100);
+        }
+    }, [isRecording, isBrowser]);
+
+    // Handle keyboard navigation during recording
+    useEffect(() => {
+        if (!isBrowser || !isRecording) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                onCancel();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                onConfirm();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isRecording, isBrowser, onCancel, onConfirm]);
 
     // Timer logic
     useEffect(() => {
@@ -50,83 +80,62 @@ const AudioRecordingUI: FunctionComponent<AudioRecordingUIProps> = ({
             animationFrameRef.current = undefined;
         }
 
-        const ctx = canvas.getContext('2d', { alpha: true });
+        const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Get device pixel ratio
-        const dpr = window.devicePixelRatio || 1;
-        
-        // Set canvas size accounting for device pixel ratio
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        
-        // Scale for high DPI display
-        ctx.scale(dpr, dpr);
-        
-        // Set canvas CSS dimensions
-        canvas.style.width = `${rect.width}px`;
-        canvas.style.height = `${rect.height}px`;
-        
-        // Ensure canvas is transparent
-        canvas.style.backgroundColor = 'transparent';
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const width = rect.width;
-        const height = rect.height;
+        // Visualization settings
+        const barWidth = 4;
+        const barGap = 2;
+        const barCount = Math.floor(canvas.width / (barWidth + barGap));
+        const barHeightMultiplier = 30;
+        const baseHeight = canvas.height / 4;
+        const radius = 2; // Radius for rounded corners
+        const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color');
         
-        // Bar configuration
-        const barWidth = 2;
-        const barGap = 3;
-        const numBars = Math.floor(width / (barWidth + barGap));
+        ctx.fillStyle = accentColor || '#0ea5e9';
         
-        // Initialize bar height data 
-        const barData = Array(numBars).fill(0).map(() => 0.5 + Math.random() * 0.2);
-        
-        // Animation offset counter
-        let animOffset = 0;
-        
-        // Animate the bar data with smooth transitions
         function animateBarData() {
-            let i = 0;
-            const phase = Math.sin(animOffset / 10) * 100;
-            
-            while (i < numBars) {
-                let t = barData[i];
+            const amplitudes = [];
+            for (let i = 0; i < barCount; i++) {
+                // Dynamic animation logic
+                const time = Date.now() / 1000;
+                const freq = 1 + (i / barCount) * 3;
+                const amplitude = (Math.sin(time * freq * 2) + 1) / 2;
                 
-                // Add tiny random movement
-                t += (Math.random() - 0.5) * 0.005;
+                // Add variations based on index to make it look more natural
+                const variation = Math.sin(i * 0.2) * 0.3 + 0.7;
                 
-                // Add multiple sine wave components with different frequencies and phases
-                t += Math.sin(i * 0.6 + phase + animOffset) * 0.02;
-                t += Math.sin(i * 0.1 + animOffset * 2) * 0.04;
+                // Create amplitude array with values between 0.1 and 1
+                const finalAmplitude = 0.1 + (amplitude * variation * 0.9);
                 
-                // Constrain values between 0 and 1
-                barData[i++] = t <= 0.1 ? 0.1 : t >= 0.9 ? 0.9 : t;
+                // Add in some randomness for realism
+                const randomFactor = 0.05;
+                const randomOffset = (Math.random() * 2 - 1) * randomFactor;
+                
+                amplitudes.push(Math.max(0.1, Math.min(1, finalAmplitude + randomOffset)));
             }
-            
-            // Increment animation offset for next frame
-            animOffset += 0.03;
+            return amplitudes;
         }
         
         const drawBars = () => {
-            // Update bar data for smooth animation
-            animateBarData();
+            const barAmplitudes = animateBarData();
             
-            // Clear the canvas with transparent background
-            ctx.clearRect(0, 0, width * dpr, height * dpr);
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Get color from computed style
-            const computedStyle = getComputedStyle(canvas);
-            const textColor = computedStyle.getPropertyValue('color');
+            // Center everything
+            const totalWidth = barCount * barWidth + (barCount - 1) * barGap;
+            const startX = (canvas.width - totalWidth) / 2;
             
-            // Draw the bars
-            for (let i = 0; i < numBars; i++) {
-                const x = Math.round(i * (barWidth + barGap));
-                const h = Math.round(barData[i] * height * 0.7); // 70% of height maximum
-                const y = Math.round((height - h) / 2);
-                const radius = Math.min(barWidth / 2, h / 2); // Rounded corners radius
-                
-                ctx.fillStyle = textColor;
+            // Draw bars
+            for (let i = 0; i < barCount; i++) {
+                const x = startX + i * (barWidth + barGap);
+                const amplitude = barAmplitudes[i];
+                const h = amplitude * barHeightMultiplier + baseHeight;
+                const y = (canvas.height - h) / 2;
                 
                 // Draw rounded rectangle with better corner handling
                 if (h > 0) {
@@ -176,18 +185,34 @@ const AudioRecordingUI: FunctionComponent<AudioRecordingUIProps> = ({
     };
 
     return (
-        <div class="audio-recording-ui">
-            <button class="recording-control-btn cancel" onClick={onCancel}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <div className="audio-recording-ui" role="dialog" aria-label="Audio recording in progress">
+            <button 
+                className="recording-control-btn cancel" 
+                onClick={onCancel}
+                aria-label="Cancel recording"
+                title="Cancel recording"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                 </svg>
             </button>
-            <div class="recording-visualization">
-                <canvas ref={canvasRef} width="300" height="40" />
-                <div class="recording-timer">{formatTime(recordingTime)}</div>
+            <div className="recording-visualization" aria-live="polite">
+                <canvas ref={canvasRef} width="300" height="40" aria-hidden="true" />
+                <div className="recording-timer" role="timer" aria-label={`Recording time: ${formatTime(recordingTime)}`}>
+                    {formatTime(recordingTime)}
+                </div>
+                <div className="sr-only" aria-live="assertive">
+                    Recording audio, duration: {formatTime(recordingTime)}
+                </div>
             </div>
-            <button class="recording-control-btn confirm" onClick={onConfirm}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <button 
+                className="recording-control-btn confirm" 
+                onClick={onConfirm}
+                aria-label="Confirm and send recording"
+                title="Confirm and send recording"
+                ref={confirmBtnRef}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="currentColor" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
                 </svg>
             </button>
