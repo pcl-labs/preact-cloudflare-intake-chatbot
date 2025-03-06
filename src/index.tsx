@@ -395,6 +395,40 @@ export function App() {
 		}
 	}, []);
 
+	useEffect(() => {
+		if (typeof document === 'undefined') return;
+		
+		const messageList = document.querySelector('.message-list');
+		if (!messageList) return;
+		
+		let scrollTimer: number | null = null;
+		
+		const handleScroll = () => {
+			// Add scrolling class when scrolling starts
+			messageList.classList.add('scrolling');
+			
+			// Clear any existing timer
+			if (scrollTimer) {
+				clearTimeout(scrollTimer);
+				scrollTimer = null;
+			}
+			
+			// Set a timer to remove the scrolling class after scrolling stops
+			scrollTimer = window.setTimeout(() => {
+				messageList.classList.remove('scrolling');
+			}, 1000); // Hide scrollbar 1 second after scrolling stops
+		};
+		
+		messageList.addEventListener('scroll', handleScroll);
+		
+		return () => {
+			messageList.removeEventListener('scroll', handleScroll);
+			if (scrollTimer) {
+				clearTimeout(scrollTimer);
+			}
+		};
+	}, []);
+
 	return (
 		<>
 			{isDragging && (
