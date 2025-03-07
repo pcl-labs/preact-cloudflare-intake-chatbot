@@ -1,6 +1,7 @@
 import { FunctionComponent } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
 import AudioRecordingUI from './AudioRecordingUI';
+import features from '../config/features';
 
 interface MediaControlsProps {
 	onMediaCapture: (blob: Blob, type: 'audio' | 'video') => void;
@@ -11,6 +12,11 @@ const MediaControls: FunctionComponent<MediaControlsProps> = ({
 	onMediaCapture,
 	onRecordingStateChange 
 }) => {
+	// If audio recording is disabled via feature flag, don't render anything
+	if (!features.enableAudioRecording) {
+		return null;
+	}
+	
 	const [isRecording, setIsRecording] = useState(false);
 	const [permissionDenied, setPermissionDenied] = useState(false);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -130,6 +136,7 @@ const MediaControls: FunctionComponent<MediaControlsProps> = ({
 					isRecording={isRecording}
 					onCancel={handleCancelRecording}
 					onConfirm={handleConfirmRecording}
+					mediaStream={mediaStreamRef.current}
 				/>
 			</div>
 		);

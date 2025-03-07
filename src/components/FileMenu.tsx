@@ -1,6 +1,12 @@
 import { FunctionComponent } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
-import CameraModal from './CameraModal';
+import createLazyComponent from '../utils/LazyComponent';
+
+// Create lazy-loaded CameraModal
+const LazyCameraModal = createLazyComponent(
+    () => import('./CameraModal'),
+    'CameraModal'
+);
 
 interface FileMenuProps {
     onPhotoSelect: (files: File[]) => void;
@@ -246,11 +252,13 @@ const FileMenu: FunctionComponent<FileMenuProps> = ({
                 tabIndex={-1}
             />
             
-            <CameraModal
-                isOpen={showCameraModal}
-                onClose={() => setShowCameraModal(false)}
-                onCapture={handleCameraCapture}
-            />
+            {isBrowser && (
+                <LazyCameraModal
+                    isOpen={showCameraModal}
+                    onClose={() => setShowCameraModal(false)}
+                    onCapture={handleCameraCapture}
+                />
+            )}
         </div>
     );
 };

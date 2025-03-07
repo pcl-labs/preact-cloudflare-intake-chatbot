@@ -1,13 +1,37 @@
 import { hydrate, prerender as ssr } from 'preact-iso';
 import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
-import FileMenu from './components/FileMenu';
+// Remove direct imports of components that will be lazy-loaded
+// import FileMenu from './components/FileMenu';
 import LoadingIndicator from './components/LoadingIndicator';
-import MediaControls from './components/MediaControls';
-import IntroductionPanel from './components/IntroductionPanel';
+// import MediaControls from './components/MediaControls';
 import VirtualMessageList from './components/VirtualMessageList';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { debounce } from './utils/debounce';
+import createLazyComponent from './utils/LazyComponent';
+import features from './config/features';
 import './style.css';
+
+// Create lazy-loaded components
+const LazyMediaControls = createLazyComponent(
+	() => import('./components/MediaControls'),
+	'MediaControls'
+);
+
+const LazyFileMenu = createLazyComponent(
+	() => import('./components/FileMenu'),
+	'FileMenu'
+);
+
+// Lazy-load other components that might not be needed immediately
+const LazyLightbox = createLazyComponent(
+	() => import('./components/Lightbox'),
+	'Lightbox'
+);
+
+const LazyCameraModal = createLazyComponent(
+	() => import('./components/CameraModal'),
+	'CameraModal'
+);
 
 interface FileAttachment {
 	name: string;
@@ -22,8 +46,6 @@ interface ChatMessage {
 	files?: FileAttachment[];
 }
 
-const LOCAL_STORAGE_INTRO_KEY = 'chat-interface-intro-shown';
-
 const RESIZE_DEBOUNCE_DELAY = 100;
 const INPUT_RESIZE_DEBOUNCE_DELAY = 50;
 
@@ -31,12 +53,6 @@ export function App() {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [inputValue, setInputValue] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
-	const [showIntro, setShowIntro] = useState(() => {
-		if (typeof window !== 'undefined') {
-			return !localStorage.getItem(LOCAL_STORAGE_INTRO_KEY);
-		}
-		return true;
-	});
 	const [previewFiles, setPreviewFiles] = useState<FileAttachment[]>([]);
 	const messageListRef = useRef<HTMLDivElement>(null);
 	const [isRecording, setIsRecording] = useState(false);
@@ -156,30 +172,40 @@ export function App() {
 
 		setInputValue('');
 		setPreviewFiles([]);
-
-		// Mock AI responses
+		
+		// Set loading state for AI response
 		setIsLoading(true);
+		
+		// TODO: Replace this with actual API call to your backend service
+		// Example:
+		// const response = await fetch('your-api-endpoint', {
+		//   method: 'POST',
+		//   headers: {
+		//     'Content-Type': 'application/json',
+		//   },
+		//   body: JSON.stringify({
+		//     message: inputValue.trim(),
+		//     files: previewFiles.map(file => ({
+		//       name: file.name,
+		//       type: file.type,
+		//       size: file.size,
+		//       url: file.url // You might need to handle files differently
+		//     }))
+		//   }),
+		// });
+		// const data = await response.json();
+		// 
+		// const aiResponse: ChatMessage = {
+		//   content: data.content,
+		//   isUser: false,
+		// };
+		// setMessages(prev => [...prev, aiResponse]);
+		// setIsLoading(false);
+		
+		// Placeholder for now - remove this for production
 		setTimeout(() => {
-			// Respond to files if any
-			if (previewFiles.length > 0) {
-				const fileResponse: ChatMessage = {
-					content: 'I see you shared some files with me. Let me take a look.',
-					isUser: false,
-				};
-				setMessages(prev => [...prev, fileResponse]);
-			}
-
-			// Respond to text if any
-			if (inputValue.trim()) {
-				const textResponse: ChatMessage = {
-					content: 'Let me help you with that.',
-					isUser: false,
-				};
-				setMessages(prev => [...prev, textResponse]);
-			}
-
 			setIsLoading(false);
-		}, 1000);
+		}, 500);
 	};
 
 	const handleKeyPress = (e: KeyboardEvent) => {
@@ -188,65 +214,6 @@ export function App() {
 			handleSubmit();
 		}
 	};
-
-	const handleCloseIntro = () => {
-		setShowIntro(false);
-		if (typeof window !== 'undefined') {
-			localStorage.setItem(LOCAL_STORAGE_INTRO_KEY, 'true');
-		}
-	};
-
-	useEffect(() => {
-		const testMessages: ChatMessage[] = [
-			{
-				content: "sup dude",
-				isUser: true
-			},
-			{
-				content: "Let me help you with that.",
-				isUser: false
-			},
-			{
-				content: "tell me more",
-				isUser: true
-			},
-			{
-				content: "Let me help you with that. Here's a detailed explanation:\n\n" +
-						"# Heading 1\nThis is a paragraph with **bold** and *italic* text.\n\n" +
-						"## Code Example\n```typescript\nconst greeting = 'Hello World';\nconsole.log(greeting);\n```\n\n" +
-						"### Lists\n- Item 1\n- Item 2\n  - Nested item\n- Item 3\n\n" +
-						"> This is a blockquote with some important information\n\n" +
-						"And here's a [link](https://example.com) to learn more.",
-				isUser: false
-			},
-			{
-				content: "give me a nice long response",
-				isUser: true
-			},
-			{
-				content: "Let me help you with that. I'll provide a comprehensive overview:\n\n" +
-						"# Project Architecture\n\n" +
-						"## Frontend Components\n" +
-						"Our application uses a component-based architecture with the following key elements:\n\n" +
-						"```typescript\ninterface Component {\n  name: string;\n  props: Props;\n  state: State;\n}\n```\n\n" +
-						"### Key Features\n" +
-						"1. Virtual DOM implementation\n" +
-						"2. State management\n" +
-						"3. Event handling\n\n" +
-						"> **Performance Note:** All components are memoized for optimal rendering\n\n" +
-						"## Data Flow\n" +
-						"The data flows through our application in the following way:\n" +
-						"* User input → Event handlers\n" +
-						"* State updates → Virtual DOM diff\n" +
-						"* DOM updates → User feedback\n\n" +
-						"### Code Example\n" +
-						"```typescript\nconst handleUpdate = (data: Data) => {\n  setState(prev => ({\n    ...prev,\n    newData: data\n  }));\n};\n```\n\n" +
-						"You can learn more about our architecture in the [documentation](https://docs.example.com).",
-				isUser: false
-			}
-		];
-		setMessages(testMessages);
-	}, []);
 
 	// Add a helper function to get the appropriate file icon based on file type
 	const getFileIcon = (file: FileAttachment) => {
@@ -462,8 +429,12 @@ export function App() {
 		
 			<div className="chat-container" role="application" aria-label="Chat interface">
 				<ErrorBoundary>
-					<IntroductionPanel isOpen={showIntro} onClose={handleCloseIntro} />
 					<main className="chat-main">
+						{messages.length === 0 && (
+							<div className="welcome-message">
+								<h1>What can I help with?</h1>
+							</div>
+						)}
 						<VirtualMessageList messages={messages} isLoading={isLoading} />
 						<div className="input-area" role="form" aria-label="Message composition">
 							<div className="input-container">
@@ -524,49 +495,49 @@ export function App() {
 								<div className="input-controls-row">
 									<div className="input-controls">
 										{!isRecording && (
-											<FileMenu
+											<LazyFileMenu
 												onPhotoSelect={handlePhotoSelect}
 												onCameraCapture={handleCameraCapture}
 												onFileSelect={handleFileSelect}
 											/>
 										)}
 										
-										<div className={`send-controls ${isRecording ? 'recording' : ''}`}>
-											<MediaControls 
-												onMediaCapture={handleMediaCapture}
-												onRecordingStateChange={setIsRecording}
-											/>
-											
-											{!isRecording && (
-												<button
-													className="send-button"
-													type="button"
-													onClick={handleSubmit}
-													disabled={(!inputValue.trim() && previewFiles.length === 0) || isLoading}
-													aria-label={(!inputValue.trim() && previewFiles.length === 0) ? "Send message (disabled)" : "Send message"}
-												>
-													<svg
-														viewBox="0 0 24 24"
-														className="send-icon"
-														xmlns="http://www.w3.org/2000/svg"
-														aria-hidden="true"
-													>
-														{(!inputValue.trim() && previewFiles.length === 0) ? (
-															// Paper plane icon when nothing to send
-															<path
-																fill="currentColor"
-																d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
-															/>
-														) : (
-															// Up arrow icon when ready to send
-															<path
-																fill="currentColor"
-																d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"
-															/>
-														)}
-													</svg>
-												</button>
+										<div className="send-controls">
+											{features.enableAudioRecording && (
+												<LazyMediaControls
+													onMediaCapture={handleMediaCapture}
+													onRecordingStateChange={setIsRecording}
+												/>
 											)}
+											
+											<button
+												className="send-button"
+												type="button"
+												onClick={handleSubmit}
+												disabled={(!inputValue.trim() && previewFiles.length === 0) || isLoading}
+												aria-label={(!inputValue.trim() && previewFiles.length === 0) ? "Send message (disabled)" : "Send message"}
+											>
+												<svg
+													viewBox="0 0 24 24"
+													className="send-icon"
+													xmlns="http://www.w3.org/2000/svg"
+													aria-hidden="true"
+												>
+													{(!inputValue.trim() && previewFiles.length === 0) ? (
+														// Paper plane icon when nothing to send
+														<path
+															fill="currentColor"
+															d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+														/>
+													) : (
+														// Up arrow icon when ready to send
+														<path
+															fill="currentColor"
+															d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"
+														/>
+													)}
+												</svg>
+											</button>
 										</div>
 									</div>
 								</div>

@@ -5,12 +5,14 @@ interface AudioRecordingUIProps {
     onCancel: () => void;
     onConfirm: () => void;
     isRecording: boolean;
+    mediaStream?: MediaStream | null; // Add mediaStream prop to access the audio stream
 }
 
 const AudioRecordingUI: FunctionComponent<AudioRecordingUIProps> = ({
     onCancel,
     onConfirm,
-    isRecording
+    isRecording,
+    mediaStream
 }) => {
     const [recordingTime, setRecordingTime] = useState(0);
     const [isBrowser, setIsBrowser] = useState(false);
@@ -18,6 +20,11 @@ const AudioRecordingUI: FunctionComponent<AudioRecordingUIProps> = ({
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationFrameRef = useRef<number>();
     const confirmBtnRef = useRef<HTMLButtonElement>(null);
+    
+    // Web Audio API references
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const dataArrayRef = useRef<Uint8Array | null>(null);
 
     useEffect(() => {
         setIsBrowser(true);
@@ -67,18 +74,135 @@ const AudioRecordingUI: FunctionComponent<AudioRecordingUIProps> = ({
         };
     }, [isRecording, isBrowser]);
 
-    // Waveform animation
+    // Set up audio context and analyzer
     useEffect(() => {
-        if (!isBrowser || !isRecording) return;
+        if (!isBrowser || !isRecording || !mediaStream) return;
 
+        try {
+            // Initialize Audio Context
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            audioContextRef.current = new AudioContext();
+            
+            // Create analyzer node
+            analyserRef.current = audioContextRef.current.createAnalyser();
+            analyserRef.current.fftSize = 256; // Fast Fourier Transform size
+            const bufferLength = analyserRef.current.frequencyBinCount;
+            dataArrayRef.current = new Uint8Array(bufferLength);
+            
+            // Connect microphone stream to analyzer
+            const source = audioContextRef.current.createMediaStreamSource(mediaStream);
+            source.connect(analyserRef.current);
+            
+            // Start visualization
+            visualizeAudio();
+        } catch (error) {
+            console.error('Error setting up audio visualization:', error);
+            // Fall back to fake visualization if Web Audio API fails
+            fallbackVisualization();
+        }
+        
+        return () => {
+            // Clean up audio context
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                audioContextRef.current.close();
+            }
+            
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = undefined;
+            }
+        };
+    }, [isRecording, isBrowser, mediaStream]);
+
+    const visualizeAudio = () => {
+        const canvas = canvasRef.current;
+        if (!canvas || !analyserRef.current || !dataArrayRef.current) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Visualization settings
+        const barWidth = 4;
+        const barGap = 2;
+        const barCount = Math.floor(canvas.width / (barWidth + barGap));
+        const radius = 2; // Radius for rounded corners
+        const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color');
+        
+        ctx.fillStyle = accentColor || '#0ea5e9';
+        
+        function draw() {
+            if (!analyserRef.current || !dataArrayRef.current) return;
+            
+            // Get frequency data from microphone
+            analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+            
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Center everything
+            const totalWidth = barCount * barWidth + (barCount - 1) * barGap;
+            const startX = (canvas.width - totalWidth) / 2;
+            
+            // Draw bars based on audio frequency data
+            for (let i = 0; i < barCount; i++) {
+                const x = startX + i * (barWidth + barGap);
+                
+                // Map frequency data to bar index
+                // Use logarithmic scale to better match human hearing perception
+                const dataIndex = Math.min(
+                    Math.floor(i / barCount * dataArrayRef.current.length * 0.75),
+                    dataArrayRef.current.length - 1
+                );
+                
+                // Scale the value to get the bar height (0-255 to 0-1)
+                const amplitude = dataArrayRef.current[dataIndex] / 255;
+                
+                // Calculate bar height (min 2px)
+                const baseHeight = 4; // Minimum height when silent
+                const maxHeight = canvas.height - 8; // Maximum height
+                const h = baseHeight + (maxHeight - baseHeight) * amplitude;
+                const y = (canvas.height - h) / 2;
+                
+                // Draw rounded rectangle
+                if (h > 0) {
+                    ctx.beginPath();
+                    // Only use rounded corners if height is enough
+                    if (h > radius * 2) {
+                        // Corners are rounded
+                        ctx.moveTo(x + radius, y);
+                        ctx.lineTo(x + barWidth - radius, y);
+                        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
+                        ctx.lineTo(x + barWidth, y + h - radius);
+                        ctx.quadraticCurveTo(x + barWidth, y + h, x + barWidth - radius, y + h);
+                        ctx.lineTo(x + radius, y + h);
+                        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+                        ctx.lineTo(x, y + radius);
+                        ctx.quadraticCurveTo(x, y, x + radius, y);
+                    } else {
+                        // Simple rectangle for small heights
+                        ctx.rect(x, y, barWidth, h);
+                    }
+                    ctx.fill();
+                }
+            }
+            
+            // Continue the animation loop if still recording
+            if (isRecording) {
+                animationFrameRef.current = requestAnimationFrame(draw);
+            }
+        }
+        
+        // Start the animation loop
+        animationFrameRef.current = requestAnimationFrame(draw);
+    };
+
+    // Fallback to fake visualization if real audio analysis fails
+    const fallbackVisualization = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-
-        // Cancel any existing animation frame to prevent duplicates
-        if (animationFrameRef.current) {
-            cancelAnimationFrame(animationFrameRef.current);
-            animationFrameRef.current = undefined;
-        }
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -168,15 +292,7 @@ const AudioRecordingUI: FunctionComponent<AudioRecordingUIProps> = ({
         
         // Start the animation loop
         animationFrameRef.current = requestAnimationFrame(drawBars);
-        
-        // Cleanup function
-        return () => {
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-                animationFrameRef.current = undefined;
-            }
-        };
-    }, [isRecording, isBrowser]);
+    };
 
     const formatTime = (seconds: number): string => {
         const mins = Math.floor(seconds / 60);
