@@ -227,9 +227,14 @@ export function App() {
 				? `https://chat.blawby.com/api/chatbot/${teamId}` 
 				: 'https://chat.blawby.com/api/chatbot';
 			
-			// Prepare the request data
+			// Prepare the request data with the correct message format
 			const requestData = {
-				message,
+				messages: [
+					{
+						role: 'user',
+						content: message
+					}
+				],
 				attachments: attachments.map(file => ({
 					name: file.name,
 					type: file.type,
