@@ -263,38 +263,57 @@ export function App() {
 			if (!reader) {
 				throw new Error('ReadableStream not supported.');
 			}
-			
-			let accumulatedResponse = '';
-			
+
+			const decoder = new TextDecoder();
+			let accumulatedContent = '';
+
 			// Process the stream
 			while (true) {
 				const { done, value } = await reader.read();
-				
-				if (done) {
-					break;
-				}
-				
-				// Convert the chunk to text
-				const chunk = new TextDecoder().decode(value);
-				
-				// Parse the SSE data
+				if (done) break; // Exit loop if stream is finished
+
+				// Decode the incoming chunk
+				const chunk = decoder.decode(value, { stream: true });
+
+				// Process each line (assuming your SSE lines start with "data:")
 				const lines = chunk.split('\n');
-				let newContent = '';
-				
 				for (const line of lines) {
-					if (line.startsWith('data:')) {
-						const content = line.substring(5).trim();
-						if (content === 'done') continue;
-						
+					if (line.trim().startsWith('data:')) {
 						try {
-							const data = JSON.parse(content);
+							const jsonStr = line.trim().slice(5).trim();
+							// Optional: skip the [DONE] marker if used
+							if (jsonStr === '[DONE]' || jsonStr === 'done') continue;
+							const data = JSON.parse(jsonStr);
 							if (data.content) {
-								newContent += data.content;
+								accumulatedContent += data.content;
+								// Update your UI or state here
+								setMessages(prevMessages => {
+									const newMessages = [...prevMessages];
+									// Update the last message in the list with the new content
+									if (newMessages.length > 0) {
+										newMessages[newMessages.length - 1] = {
+											...newMessages[newMessages.length - 1],
+											content: accumulatedContent
+										};
+									}
+									return newMessages;
+								});
 							}
 						} catch (e) {
-							// Only append non-"done" messages
-							if (content !== 'done') {
-								newContent += content;
+							// If JSON parsing fails, append the raw content if it's not a control message
+							const content = line.slice(5).trim();
+							if (content !== '[DONE]' && content !== 'done') {
+								accumulatedContent += content;
+								setMessages(prevMessages => {
+									const newMessages = [...prevMessages];
+									if (newMessages.length > 0) {
+										newMessages[newMessages.length - 1] = {
+											...newMessages[newMessages.length - 1],
+											content: accumulatedContent
+										};
+									}
+									return newMessages;
+								});
 							}
 						}
 					}
