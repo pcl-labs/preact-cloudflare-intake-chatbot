@@ -249,7 +249,8 @@ export function App() {
 			const response = await fetch(apiUrl, {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'Accept': 'text/event-stream'
 				},
 				body: JSON.stringify(requestData)
 			});
@@ -266,46 +267,71 @@ export function App() {
 
 			const decoder = new TextDecoder();
 			let accumulatedContent = '';
+			let buffer = '';
 
 			// Process the stream
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
 
-				// Decode the incoming chunk
-				const chunk = decoder.decode(value, { stream: true });
-				const lines = chunk.split('\n');
+				// Decode the incoming chunk and add it to the buffer
+				buffer += decoder.decode(value, { stream: true });
+
+				// Process complete lines from the buffer
+				const lines = buffer.split('\n');
+				buffer = lines.pop() || ''; // Keep the last incomplete line in the buffer
 
 				for (const line of lines) {
 					if (line.trim().startsWith('data:')) {
 						const content = line.slice(5).trim();
 						
-						// Skip if the content is a control message
-						if (content === '[DONE]' || content === 'done') continue;
+						// Skip empty lines or control messages
+						if (!content || content === '[DONE]' || content === 'done') continue;
 
 						try {
 							const data = JSON.parse(content);
-							if (data.content) {
-								accumulatedContent += data.content;
+							if (data.response) {
+								accumulatedContent += data.response;
+								// Update the last message with accumulated content
+								setMessages(prevMessages => {
+									const newMessages = [...prevMessages];
+									if (newMessages.length > 0) {
+										newMessages[newMessages.length - 1] = {
+											...newMessages[newMessages.length - 1],
+											content: accumulatedContent
+										};
+									}
+									return newMessages;
+								});
 							}
 						} catch (e) {
-							// If JSON parsing fails, append the raw content if it's not a control message
-							if (content !== '[DONE]' && content !== 'done') {
-								accumulatedContent += content;
-							}
+							console.error('Error parsing SSE data:', e);
 						}
+					}
+				}
+			}
 
-						// Update the last message with accumulated content
-						setMessages(prevMessages => {
-							const newMessages = [...prevMessages];
-							if (newMessages.length > 0) {
-								newMessages[newMessages.length - 1] = {
-									...newMessages[newMessages.length - 1],
-									content: accumulatedContent
-								};
-							}
-							return newMessages;
-						});
+			// Process any remaining content in the buffer
+			if (buffer.trim().startsWith('data:')) {
+				const content = buffer.slice(5).trim();
+				if (content && content !== '[DONE]' && content !== 'done') {
+					try {
+						const data = JSON.parse(content);
+						if (data.response) {
+							accumulatedContent += data.response;
+							setMessages(prevMessages => {
+								const newMessages = [...prevMessages];
+								if (newMessages.length > 0) {
+									newMessages[newMessages.length - 1] = {
+										...newMessages[newMessages.length - 1],
+										content: accumulatedContent
+									};
+								}
+								return newMessages;
+							});
+						}
+					} catch (e) {
+						console.error('Error parsing final SSE data:', e);
 					}
 				}
 			}
