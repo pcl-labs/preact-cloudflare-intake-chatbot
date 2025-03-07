@@ -118,23 +118,25 @@
   - Implemented conditional UI rendering ✅
 
 ## Next Immediate Tasks (Priority Order)
-1. Accessibility improvements
+1. Integration with ai.blawby.com
+   - Add teamId extraction from URL parameters
+   - Update API endpoints to use teamId from URL
+   - Implement business details fetching from API
+   - Set up postMessage communication with parent frame
+   - Add state change notifications (open/closed status)
+   - Ensure proper iframe embedding behavior
+
+2. Accessibility improvements
    - Add keyboard navigation support
    - Improve screen reader compatibility
    - Add ARIA attributes to interactive elements
    - Implement focus management
 
-2. API Integration
-   - Implement backend API connection
-   - Add proper error handling
-   - Implement retry mechanism
-   - Add streaming response support
-
 3. Testing and QA
-   - Set up automated testing
-   - Perform cross-browser testing
-   - Implement performance monitoring
-   - Address edge cases
+   - Test iframe embedding scenarios
+   - Verify API connectivity with team contexts
+   - Test cross-origin communication
+   - Verify proper light/dark theme behavior in iframe context
 
 ## Future Tasks
 - Speech-to-text integration

@@ -33,6 +33,9 @@ const LazyCameraModal = createLazyComponent(
 	'CameraModal'
 );
 
+// Define position type
+type ChatPosition = 'widget' | 'inline';
+
 interface FileAttachment {
 	name: string;
 	size: number;
@@ -54,12 +57,81 @@ export function App() {
 	const [inputValue, setInputValue] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
 	const [previewFiles, setPreviewFiles] = useState<FileAttachment[]>([]);
+	const [isOpen, setIsOpen] = useState(true);
+	const [position, setPosition] = useState<ChatPosition>('widget');
+	const [teamId, setTeamId] = useState<string | null>(null);
+	const [businessDetails, setBusinessDetails] = useState<{
+		name?: string;
+		logo?: string;
+		primaryColor?: string;
+	} | null>(null);
 	const messageListRef = useRef<HTMLDivElement>(null);
 	const [isRecording, setIsRecording] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
 
 	// Track drag counter for better handling of nested elements
 	const dragCounter = useRef(0);
+
+	// Parse URL parameters for configuration
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			const urlParams = new URLSearchParams(window.location.search);
+			const positionParam = urlParams.get('position');
+			const teamIdParam = urlParams.get('teamId');
+			
+			// Set position based on URL parameter
+			if (positionParam === 'widget' || positionParam === 'inline') {
+				setPosition(positionParam);
+			}
+
+			// Set teamId if available
+			if (teamIdParam) {
+				setTeamId(teamIdParam);
+			}
+
+			// Start in open state if inline position, closed otherwise
+			setIsOpen(positionParam === 'inline');
+		}
+	}, []);
+
+	// Set up postMessage communication with parent frame
+	useEffect(() => {
+		// Function to notify parent frame of state changes
+		const notifyParent = (eventType: string, data: any = {}) => {
+			if (window.parent !== window) {
+				window.parent.postMessage({
+					type: eventType,
+					...data
+				}, '*');
+			}
+		};
+
+		// Notify parent when open/closed state changes
+		notifyParent('chatStateChange', { isOpen });
+
+		// Listen for messages from parent
+		const handleParentMessage = (event: MessageEvent) => {
+			if (event.data && event.data.type) {
+				switch (event.data.type) {
+					case 'toggleChat':
+						setIsOpen(prev => !prev);
+						break;
+					case 'openChat':
+						setIsOpen(true);
+						break;
+					case 'closeChat':
+						setIsOpen(false);
+						break;
+				}
+			}
+		};
+
+		window.addEventListener('message', handleParentMessage);
+		
+		return () => {
+			window.removeEventListener('message', handleParentMessage);
+		};
+	}, [isOpen]);
 
 	const adjustTextareaHeight = useCallback((target: HTMLTextAreaElement) => {
 		target.style.height = 'auto';
@@ -148,6 +220,57 @@ export function App() {
 		setMessages((prev) => [...prev, newMessage]);
 	};
 
+	// Fetch business details if teamId is available
+	useEffect(() => {
+		const fetchBusinessDetails = async () => {
+			if (!teamId) return;
+			
+			try {
+				const response = await fetch(`https://api.ai.blawby.com/business/details?teamId=${teamId}`);
+				if (response.ok) {
+					const data = await response.json();
+					setBusinessDetails(data);
+					
+					// Apply custom styling if primary color is set
+					if (data.primaryColor) {
+						document.documentElement.style.setProperty('--accent-color', data.primaryColor);
+					}
+				}
+			} catch (error) {
+				console.error('Failed to fetch business details:', error);
+			}
+		};
+		
+		fetchBusinessDetails();
+	}, [teamId]);
+
+	// Update API endpoint based on teamId
+	const sendMessageToAPI = async (message: string, attachments: FileAttachment[] = []) => {
+		setIsLoading(true);
+		
+		try {
+			const apiUrl = teamId 
+				? `https://api.ai.blawby.com/chat?teamId=${teamId}` 
+				: 'https://api.ai.blawby.com/chat';
+			
+			// Simulate API call (replace with actual implementation)
+			await new Promise(resolve => setTimeout(resolve, 1000));
+			
+			const response = {
+				content: `This is a simulated response to: ${message}`,
+				isUser: false
+			};
+			
+			setMessages(prev => [...prev, response]);
+		} catch (error) {
+			console.error('Error sending message:', error);
+			// Add error handling as needed
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	// Update handleSubmit to use the new API function
 	const handleSubmit = () => {
 		if (!inputValue.trim() && previewFiles.length === 0) return;
 
@@ -173,39 +296,14 @@ export function App() {
 		setInputValue('');
 		setPreviewFiles([]);
 		
-		// Set loading state for AI response
-		setIsLoading(true);
-		
-		// TODO: Replace this with actual API call to your backend service
-		// Example:
-		// const response = await fetch('your-api-endpoint', {
-		//   method: 'POST',
-		//   headers: {
-		//     'Content-Type': 'application/json',
-		//   },
-		//   body: JSON.stringify({
-		//     message: inputValue.trim(),
-		//     files: previewFiles.map(file => ({
-		//       name: file.name,
-		//       type: file.type,
-		//       size: file.size,
-		//       url: file.url // You might need to handle files differently
-		//     }))
-		//   }),
-		// });
-		// const data = await response.json();
-		// 
-		// const aiResponse: ChatMessage = {
-		//   content: data.content,
-		//   isUser: false,
-		// };
-		// setMessages(prev => [...prev, aiResponse]);
-		// setIsLoading(false);
-		
-		// Placeholder for now - remove this for production
-		setTimeout(() => {
-			setIsLoading(false);
-		}, 500);
+		// Reset textarea height
+		const textarea = document.querySelector('.message-input') as HTMLTextAreaElement;
+		if (textarea) {
+			textarea.style.height = 'auto';
+		}
+
+		// Send message to API
+		sendMessageToAPI(inputValue.trim(), previewFiles);
 	};
 
 	const handleKeyPress = (e: KeyboardEvent) => {
@@ -427,123 +525,160 @@ export function App() {
 				</div>
 			)}
 		
-			<div className="chat-container" role="application" aria-label="Chat interface">
-				<ErrorBoundary>
-					<main className="chat-main">
-						{messages.length === 0 && (
-							<div className="welcome-message">
-								<h1>What can I help with?</h1>
-							</div>
-						)}
-						<VirtualMessageList messages={messages} isLoading={isLoading} />
-						<div className="input-area" role="form" aria-label="Message composition">
-							<div className="input-container">
-								{previewFiles.length > 0 && (
-									<div className="input-preview" role="list" aria-label="File attachments">
-										{previewFiles.map((file, index) => (
-											<div 
-												className={`input-preview-item ${file.type.startsWith('image/') ? 'image-preview' : 'file-preview'}`}
-												key={index}
-												role="listitem"
-											>
-												{file.type.startsWith('image/') ? (
-													<>
-														<img src={file.url} alt={`Preview of ${file.name}`} />
-													</>
-												) : (
-													<>
-														<div className="file-thumbnail" aria-hidden="true">
-															{getFileIcon(file)}
-														</div>
-														<div className="file-info">
-															<div className="file-name">{file.name.length > 15 ? `${file.name.substring(0, 15)}...` : file.name}</div>
-															<div className="file-ext">{file.name.split('.').pop()}</div>
-														</div>
-													</>
-												)}
-												<button
-													type="button"
-													className="input-preview-remove"
-													onClick={() => removePreviewFile(index)}
-													title="Remove file"
-													aria-label={`Remove ${file.name}`}
-												>
-													<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-														<path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
-													</svg>
-												</button>
-											</div>
-										))}
-									</div>
-								)}
-								<textarea
-									className="message-input"
-									placeholder="Type a message..."
-									rows={1}
-									value={inputValue}
-									onInput={handleInputChange}
-									onKeyPress={handleKeyPress}
-									disabled={isLoading}
-									aria-label="Message input"
-									aria-multiline="true"
-									aria-required="false"
-									aria-describedby="input-instructions"
+			{/* Place toggle button outside main container for widget mode */}
+			{position === 'widget' && (
+				<button 
+					className={`chat-toggle standalone ${isOpen ? 'chat-open' : 'chat-closed'}`}
+					onClick={() => setIsOpen(prev => !prev)}
+					aria-label={isOpen ? "Minimize chat" : "Open chat"}
+					title={isOpen ? "Minimize chat" : "Open chat"}
+				>
+					{isOpen ? (
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+							<path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
+						</svg>
+					) : (
+						<>
+							{businessDetails?.logo ? (
+								<img 
+									src={businessDetails.logo} 
+									alt={`${businessDetails.name || 'Business'} logo`} 
+									className="business-logo"
 								/>
-								<span id="input-instructions" className="sr-only">
-									Type your message and press Enter to send. Use the buttons below to attach files or record audio.
-								</span>
-								<div className="input-controls-row">
-									<div className="input-controls">
-										{!isRecording && (
-											<LazyFileMenu
-												onPhotoSelect={handlePhotoSelect}
-												onCameraCapture={handleCameraCapture}
-												onFileSelect={handleFileSelect}
-											/>
-										)}
-										
-										<div className="send-controls">
-											{features.enableAudioRecording && (
-												<LazyMediaControls
-													onMediaCapture={handleMediaCapture}
-													onRecordingStateChange={setIsRecording}
+							) : (
+								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+									<path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z" />
+								</svg>
+							)}
+						</>
+					)}
+				</button>
+			)}
+		
+			<div 
+				className={`chat-container ${position} ${isOpen ? 'open' : 'closed'}`} 
+				role="application" 
+				aria-label="Chat interface"
+				aria-expanded={isOpen}
+			>
+				<ErrorBoundary>
+					{isOpen && (
+						<main className="chat-main">
+							{messages.length === 0 && (
+								<div className="welcome-message">
+									<h1>{businessDetails?.name ? `Welcome to ${businessDetails.name}` : 'What can I help with?'}</h1>
+								</div>
+							)}
+							<VirtualMessageList messages={messages} isLoading={isLoading} />
+							<div className="input-area" role="form" aria-label="Message composition">
+								<div className="input-container">
+									{previewFiles.length > 0 && (
+										<div className="input-preview" role="list" aria-label="File attachments">
+											{previewFiles.map((file, index) => (
+												<div 
+													className={`input-preview-item ${file.type.startsWith('image/') ? 'image-preview' : 'file-preview'}`}
+													key={index}
+													role="listitem"
+												>
+													{file.type.startsWith('image/') ? (
+														<>
+															<img src={file.url} alt={`Preview of ${file.name}`} />
+														</>
+													) : (
+														<>
+															<div className="file-thumbnail" aria-hidden="true">
+																{getFileIcon(file)}
+															</div>
+															<div className="file-info">
+																<div className="file-name">{file.name.length > 15 ? `${file.name.substring(0, 15)}...` : file.name}</div>
+																<div className="file-ext">{file.name.split('.').pop()}</div>
+															</div>
+														</>
+													)}
+													<button
+														type="button"
+														className="input-preview-remove"
+														onClick={() => removePreviewFile(index)}
+														title="Remove file"
+														aria-label={`Remove ${file.name}`}
+													>
+														<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+															<path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
+														</svg>
+													</button>
+												</div>
+											))}
+										</div>
+									)}
+									<textarea
+										className="message-input"
+										placeholder="Type a message..."
+										rows={1}
+										value={inputValue}
+										onInput={handleInputChange}
+										onKeyPress={handleKeyPress}
+										disabled={isLoading}
+										aria-label="Message input"
+										aria-multiline="true"
+										aria-required="false"
+										aria-describedby="input-instructions"
+									/>
+									<span id="input-instructions" className="sr-only">
+										Type your message and press Enter to send. Use the buttons below to attach files or record audio.
+									</span>
+									<div className="input-controls-row">
+										<div className="input-controls">
+											{!isRecording && (
+												<LazyFileMenu
+													onPhotoSelect={handlePhotoSelect}
+													onCameraCapture={handleCameraCapture}
+													onFileSelect={handleFileSelect}
 												/>
 											)}
 											
-											<button
-												className="send-button"
-												type="button"
-												onClick={handleSubmit}
-												disabled={(!inputValue.trim() && previewFiles.length === 0) || isLoading}
-												aria-label={(!inputValue.trim() && previewFiles.length === 0) ? "Send message (disabled)" : "Send message"}
-											>
-												<svg
-													viewBox="0 0 24 24"
-													className="send-icon"
-													xmlns="http://www.w3.org/2000/svg"
-													aria-hidden="true"
+											<div className="send-controls">
+												{features.enableAudioRecording && (
+													<LazyMediaControls
+														onMediaCapture={handleMediaCapture}
+														onRecordingStateChange={setIsRecording}
+													/>
+												)}
+												
+												<button
+													className="send-button"
+													type="button"
+													onClick={handleSubmit}
+													disabled={(!inputValue.trim() && previewFiles.length === 0) || isLoading}
+													aria-label={(!inputValue.trim() && previewFiles.length === 0) ? "Send message (disabled)" : "Send message"}
 												>
-													{(!inputValue.trim() && previewFiles.length === 0) ? (
-														// Paper plane icon when nothing to send
-														<path
-															fill="currentColor"
-															d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
-														/>
-													) : (
-														// Up arrow icon when ready to send
-														<path
-															fill="currentColor"
-															d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"
-														/>
-													)}
-												</svg>
-											</button>
+													<svg
+														viewBox="0 0 24 24"
+														className="send-icon"
+														xmlns="http://www.w3.org/2000/svg"
+														aria-hidden="true"
+													>
+														{(!inputValue.trim() && previewFiles.length === 0) ? (
+															// Paper plane icon when nothing to send
+															<path
+																fill="currentColor"
+																d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+															/>
+														) : (
+															// Up arrow icon when ready to send
+															<path
+																fill="currentColor"
+																d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"
+															/>
+														)}
+													</svg>
+												</button>
+											</div>
 										</div>
 									</div>
 								</div>
 							</div>
-						</div>
-					</main>
+						</main>
+					)}
 				</ErrorBoundary>
 			</div>
 		</>
