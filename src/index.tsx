@@ -227,20 +227,14 @@ export function App() {
 				? `https://chat.blawby.com/api/chatbot/${teamId}` 
 				: 'https://chat.blawby.com/api/chatbot';
 			
-			// Prepare the request data with the correct message format
 			const requestData = {
-				messages: [
-					{
-						role: 'user',
-						content: message
-					}
-				],
-				attachments: attachments.map(file => ({
-					name: file.name,
-					type: file.type,
-					size: file.size,
-					url: file.url
-				}))
+				messages: messages.map(msg => ({
+					role: msg.isUser ? 'user' : 'assistant',
+					content: msg.content
+				})).concat({
+					role: 'user',
+					content: message
+				})
 			};
 			
 			// Add a placeholder message for the AI's response that we'll update
