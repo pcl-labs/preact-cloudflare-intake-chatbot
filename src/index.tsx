@@ -60,11 +60,6 @@ export function App() {
 	const [isOpen, setIsOpen] = useState(true);
 	const [position, setPosition] = useState<ChatPosition>('widget');
 	const [teamId, setTeamId] = useState<string | null>(null);
-	const [businessDetails, setBusinessDetails] = useState<{
-		name?: string;
-		logo?: string;
-		primaryColor?: string;
-	} | null>(null);
 	const messageListRef = useRef<HTMLDivElement>(null);
 	const [isRecording, setIsRecording] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
@@ -220,31 +215,7 @@ export function App() {
 		setMessages((prev) => [...prev, newMessage]);
 	};
 
-	// Fetch business details if teamId is available
-	useEffect(() => {
-		const fetchBusinessDetails = async () => {
-			if (!teamId) return;
-			
-			try {
-				const response = await fetch(`https://api.ai.blawby.com/business/details?teamId=${teamId}`);
-				if (response.ok) {
-					const data = await response.json();
-					setBusinessDetails(data);
-					
-					// Apply custom styling if primary color is set
-					if (data.primaryColor) {
-						document.documentElement.style.setProperty('--accent-color', data.primaryColor);
-					}
-				}
-			} catch (error) {
-				console.error('Failed to fetch business details:', error);
-			}
-		};
-		
-		fetchBusinessDetails();
-	}, [teamId]);
-
-	// Update API endpoint based on teamId
+	// Simplified API endpoint based on teamId
 	const sendMessageToAPI = async (message: string, attachments: FileAttachment[] = []) => {
 		setIsLoading(true);
 		
@@ -264,7 +235,6 @@ export function App() {
 			setMessages(prev => [...prev, response]);
 		} catch (error) {
 			console.error('Error sending message:', error);
-			// Add error handling as needed
 		} finally {
 			setIsLoading(false);
 		}
@@ -538,19 +508,9 @@ export function App() {
 							<path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
 						</svg>
 					) : (
-						<>
-							{businessDetails?.logo ? (
-								<img 
-									src={businessDetails.logo} 
-									alt={`${businessDetails.name || 'Business'} logo`} 
-									className="business-logo"
-								/>
-							) : (
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-									<path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z" />
-								</svg>
-							)}
-						</>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+							<path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z" />
+						</svg>
 					)}
 				</button>
 			)}
@@ -566,7 +526,7 @@ export function App() {
 						<main className="chat-main">
 							{messages.length === 0 && (
 								<div className="welcome-message">
-									<h1>{businessDetails?.name ? `Welcome to ${businessDetails.name}` : 'What can I help with?'}</h1>
+									<h1>What can I help with?</h1>
 								</div>
 							)}
 							<VirtualMessageList messages={messages} isLoading={isLoading} />

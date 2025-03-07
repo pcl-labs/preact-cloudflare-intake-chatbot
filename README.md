@@ -43,6 +43,8 @@ Try it yourself:
 - **Audio Recording** — Record and send audio messages with waveform visualization
 - **Camera Integration** — Capture and send photos directly from your device
 - **Drag-and-Drop** — Full-screen file dropping with intuitive visual feedback
+- **Flexible Positioning** — Widget mode (collapsible sidebar) or inline mode for different use cases
+- **Parent Frame Communication** — Seamless integration with parent websites via postMessage API
 - **Accessibility** — ARIA-compliant with keyboard navigation and screen reader support
 - **iOS-style Scrollbars** — Elegant auto-hiding scrollbars with smooth animations
 - **SSR Compatible** — Server-side rendering support for better SEO and performance
@@ -57,6 +59,72 @@ This clone achieves a **full ChatGPT experience in just ~40KB** (gzipped) by usi
 - **Better Mobile Experience**: Less JS means faster load times on mobile networks
 - **Lower Memory Usage**: Requires less RAM to run smoothly
 - **Same Modern Features**: Hooks, Context, etc. without the overhead
+
+## 🔌 Embedding & Integration
+
+The chat interface can be embedded in any website with two display options:
+
+### Positioning Options
+
+1. **Widget Mode** (default) - Appears as a collapsible chat widget in the bottom-right corner
+   - High-contrast toggle button for easy access
+   - Full-height sidebar when expanded
+   - Automatically collapses on mobile devices for better UX
+
+2. **Inline Mode** - Embeds directly within a page as a regular component
+   - Always visible (no collapse/expand functionality)
+   - Ideal for dedicated chat pages
+
+### URL Parameters
+
+Control behavior using URL parameters:
+
+- `?position=widget` - Display as a collapsible widget (default)
+- `?position=inline` - Display as an inline component
+- `?teamId=YOUR_TEAM_ID` - Connect to a specific team context
+
+Example:
+```
+https://chat.blawby.com/?position=widget&teamId=acme-corp
+```
+
+### Integration with ai.blawby.com
+
+When embedded in ai.blawby.com:
+
+1. **Auto-detection** - Automatically reads teamId from URL parameters
+2. **Communication** - Uses postMessage API for parent-frame communication:
+   - Notifies parent of open/closed state changes
+   - Receives commands from parent frame
+   - Syncs authentication context
+
+### Embedding Code Example
+
+```html
+<!-- Basic embedding -->
+<iframe 
+  src="https://chat.blawby.com/?position=widget&teamId=YOUR_TEAM_ID" 
+  style="border: none; width: 100%; height: 600px;"
+></iframe>
+
+<!-- Advanced embedding with communication -->
+<script>
+  // Listen for chat state changes
+  window.addEventListener('message', (event) => {
+    if (event.data.type === 'chatStateChange') {
+      console.log('Chat is now:', event.data.isOpen ? 'open' : 'closed');
+    }
+  });
+  
+  // Send command to chat
+  function openChat() {
+    const chatFrame = document.querySelector('iframe');
+    chatFrame.contentWindow.postMessage({
+      type: 'openChat'
+    }, '*');
+  }
+</script>
+```
 
 ## 🏗️ Getting Started
 
@@ -84,6 +152,23 @@ npm run dev
 ```
 
 This starts a dev server at http://localhost:5173/
+
+### Testing Different Configurations
+
+You can test different display modes locally by adding URL parameters:
+
+```
+# Test widget mode (collapsible, bottom-right)
+http://localhost:5173/?position=widget
+
+# Test inline mode (always visible)
+http://localhost:5173/?position=inline
+
+# Test with a mock team ID
+http://localhost:5173/?position=widget&teamId=test-team
+```
+
+For mobile testing, use the browser's device emulation or connect a real device to your local network.
 
 ### Production Build
 
