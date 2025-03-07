@@ -224,8 +224,8 @@ export function App() {
 		
 		try {
 			const apiUrl = teamId 
-				? `https://api.ai.blawby.com/chat/stream?teamId=${teamId}` 
-				: 'https://api.ai.blawby.com/chat/stream';
+				? `https://ai.blawby.com/api/chatbot/${teamId}` 
+				: 'https://ai.blawby.com/api/chatbot';
 			
 			// Prepare the request data
 			const requestData = {
