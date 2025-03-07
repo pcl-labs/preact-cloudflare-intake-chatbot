@@ -283,14 +283,19 @@ export function App() {
 				
 				for (const line of lines) {
 					if (line.startsWith('data:')) {
+						const content = line.substring(5).trim();
+						if (content === 'done') continue;
+						
 						try {
-							const data = JSON.parse(line.substring(5));
+							const data = JSON.parse(content);
 							if (data.content) {
 								newContent += data.content;
 							}
 						} catch (e) {
-							// If not JSON, just append the raw data
-							newContent += line.substring(5);
+							// Only append non-"done" messages
+							if (content !== 'done') {
+								newContent += content;
+							}
 						}
 					}
 				}
