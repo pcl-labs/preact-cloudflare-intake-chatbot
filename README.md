@@ -88,15 +88,38 @@ Example:
 https://chat.blawby.com/?position=widget&teamId=acme-corp
 ```
 
-### Integration with ai.blawby.com
+### Integration with chat.blawby.com
 
-When embedded in ai.blawby.com:
+When embedded in chat.blawby.com:
 
 1. **Auto-detection** - Automatically reads teamId from URL parameters
 2. **Communication** - Uses postMessage API for parent-frame communication:
    - Notifies parent of open/closed state changes
    - Receives commands from parent frame
    - Syncs authentication context
+
+### API Payload Format
+
+The chat interface sends messages to the API in the following format:
+
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "user message here"
+    },
+    {
+      "role": "assistant",
+      "content": "assistant response here"
+    }
+  ]
+}
+```
+
+The messages array maintains the conversation history, with each message containing:
+- `role`: Either "user" or "assistant"
+- `content`: The actual message content
 
 ### Embedding Code Example
 
