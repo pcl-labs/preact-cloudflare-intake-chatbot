@@ -1,12 +1,48 @@
 import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
 import { resolve } from 'path';
-import compression from 'vite-plugin-compression';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { VitePWA } from 'vite-plugin-pwa';
 import { createHtmlPlugin } from 'vite-plugin-html';
 import { promises as fs } from 'fs';
 import { Plugin } from 'vite';
+import zlib from 'zlib';
+
+// Custom compression plugin to avoid path issues
+const customCompressionPlugin = (options = {}) => {
+	const {
+		algorithm = 'gzip',
+		ext = algorithm === 'brotli' ? '.br' : '.gz',
+		threshold = 1024, // 1KB
+	} = options;
+
+	return {
+		name: 'custom-compression',
+		apply: 'build',
+		async writeBundle(_, bundle) {
+			const compressFunction = algorithm === 'brotli' 
+				? zlib.brotliCompressSync 
+				: zlib.gzipSync;
+			
+			for (const [fileName, file] of Object.entries(bundle)) {
+				if (file.type === 'chunk' || file.type === 'asset') {
+					const filePath = resolve('dist', fileName);
+					try {
+						const source = await fs.readFile(filePath);
+						if (source.length > threshold) {
+							// Skip small files
+							const compressed = compressFunction(source);
+							await fs.writeFile(filePath + ext, compressed);
+							console.log(`[custom-compression] Compressed ${fileName}: ${source.length}B → ${compressed.length}B`);
+						}
+					} catch (err) {
+						console.warn(`[custom-compression] Error compressing ${fileName}:`, err);
+					}
+				}
+			}
+		}
+	};
+};
 
 // Create a plugin for critical CSS extraction
 const criticalCssPlugin = (): Plugin => {
@@ -23,12 +59,13 @@ const criticalCssPlugin = (): Plugin => {
 				compress: true,
 				mergeStylesheets: true,
 				minimumExternalSize: 4096, // Files larger than this will not be inlined (4kb)
+				path: resolve(__dirname, 'dist'), // Add explicit path to resolve stylesheet issues
 			});
 
 			try {
 				// Process the main HTML file
 				const html = await fs.readFile('dist/index.html', 'utf8');
-				const processed = await critters.process(html);
+				const processed = await critters.process(html, { path: 'dist/index.html' });
 				await fs.writeFile('dist/index.html', processed);
 				console.log('✅ Critical CSS inlined successfully');
 			} catch (e) {
@@ -47,10 +84,9 @@ export default defineConfig({
 				renderTarget: '#app',
 			},
 		}),
-		// Gzip compression
-		compression({ algorithm: 'gzip' }),
-		// Brotli compression (higher compression ratio)
-		compression({ algorithm: 'brotli' }),
+		// Replace with custom compression
+		customCompressionPlugin({ algorithm: 'gzip' }),
+		customCompressionPlugin({ algorithm: 'brotli' }),
 		// Bundle visualization for production builds
 		visualizer({
 			gzipSize: true,
