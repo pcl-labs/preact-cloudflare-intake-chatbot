@@ -258,67 +258,43 @@ export function App() {
 			if (!response.ok) {
 				throw new Error(`API error: ${response.status}`);
 			}
-			
-			// Create a reader to read the stream
+
+			// Get the response as a stream
 			const reader = response.body?.getReader();
 			if (!reader) {
 				throw new Error('ReadableStream not supported.');
 			}
 
 			const decoder = new TextDecoder();
-			let accumulatedContent = '';
 			let buffer = '';
+			let accumulatedContent = '';
 
-			// Process the stream
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
 
-				// Decode the incoming chunk and add it to the buffer
+				// Decode the chunk and add to buffer
 				buffer += decoder.decode(value, { stream: true });
 
-				// Process complete lines from the buffer
+				// Process complete lines from buffer
 				const lines = buffer.split('\n');
-				buffer = lines.pop() || ''; // Keep the last incomplete line in the buffer
+				// Keep the last incomplete line in the buffer
+				buffer = lines.pop() || '';
 
 				for (const line of lines) {
-					if (line.trim().startsWith('data:')) {
-						const content = line.slice(5).trim();
-						
-						// Skip empty lines or control messages
-						if (!content || content === '[DONE]' || content === 'done') continue;
+					const trimmedLine = line.trim();
+					if (!trimmedLine.startsWith('data:')) continue;
 
-						try {
-							const data = JSON.parse(content);
-							if (data.response) {
-								accumulatedContent += data.response;
-								// Update the last message with accumulated content
-								setMessages(prevMessages => {
-									const newMessages = [...prevMessages];
-									if (newMessages.length > 0) {
-										newMessages[newMessages.length - 1] = {
-											...newMessages[newMessages.length - 1],
-											content: accumulatedContent
-										};
-									}
-									return newMessages;
-								});
-							}
-						} catch (e) {
-							console.error('Error parsing SSE data:', e);
-						}
-					}
-				}
-			}
+					const data = trimmedLine.slice(5); // Remove 'data:' prefix
+					if (!data || data === '[DONE]') continue;
 
-			// Process any remaining content in the buffer
-			if (buffer.trim().startsWith('data:')) {
-				const content = buffer.slice(5).trim();
-				if (content && content !== '[DONE]' && content !== 'done') {
 					try {
-						const data = JSON.parse(content);
-						if (data.response) {
-							accumulatedContent += data.response;
+						const parsed = JSON.parse(data);
+						if (parsed.response !== undefined) {
+							// Add the new piece of text
+							accumulatedContent += parsed.response;
+							
+							// Update the message immediately for real-time effect
 							setMessages(prevMessages => {
 								const newMessages = [...prevMessages];
 								if (newMessages.length > 0) {
@@ -331,7 +307,35 @@ export function App() {
 							});
 						}
 					} catch (e) {
-						console.error('Error parsing final SSE data:', e);
+						console.error('Error parsing SSE data:', e);
+					}
+				}
+			}
+
+			// Process any remaining content in the buffer
+			if (buffer.trim()) {
+				const trimmedBuffer = buffer.trim();
+				if (trimmedBuffer.startsWith('data:')) {
+					const data = trimmedBuffer.slice(5);
+					if (data && data !== '[DONE]') {
+						try {
+							const parsed = JSON.parse(data);
+							if (parsed.response !== undefined) {
+								accumulatedContent += parsed.response;
+								setMessages(prevMessages => {
+									const newMessages = [...prevMessages];
+									if (newMessages.length > 0) {
+										newMessages[newMessages.length - 1] = {
+											...newMessages[newMessages.length - 1],
+											content: accumulatedContent
+										};
+									}
+									return newMessages;
+								});
+							}
+						} catch (e) {
+							console.error('Error parsing final SSE data:', e);
+						}
 					}
 				}
 			}
