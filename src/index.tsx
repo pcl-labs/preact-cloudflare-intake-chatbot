@@ -218,26 +218,108 @@ export function App() {
 		setMessages((prev) => [...prev, newMessage]);
 	};
 
-	// Simplified API endpoint based on teamId
+	// Make real API calls to ai.blawby.com with SSE support
 	const sendMessageToAPI = async (message: string, attachments: FileAttachment[] = []) => {
 		setIsLoading(true);
 		
 		try {
 			const apiUrl = teamId 
-				? `https://api.ai.blawby.com/chat?teamId=${teamId}` 
-				: 'https://api.ai.blawby.com/chat';
+				? `https://api.ai.blawby.com/chat/stream?teamId=${teamId}` 
+				: 'https://api.ai.blawby.com/chat/stream';
 			
-			// Simulate API call (replace with actual implementation)
-			await new Promise(resolve => setTimeout(resolve, 1000));
+			// Prepare the request data
+			const requestData = {
+				message,
+				attachments: attachments.map(file => ({
+					name: file.name,
+					type: file.type,
+					size: file.size,
+					url: file.url
+				}))
+			};
 			
-			const response = {
-				content: `This is a simulated response to: ${message}`,
+			// Add a placeholder message for the AI's response that we'll update
+			const placeholderMessage: ChatMessage = {
+				content: '',
 				isUser: false
 			};
 			
-			setMessages(prev => [...prev, response]);
+			setMessages(prev => [...prev, placeholderMessage]);
+			
+			// Make the API call
+			const response = await fetch(apiUrl, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(requestData)
+			});
+			
+			if (!response.ok) {
+				throw new Error(`API error: ${response.status}`);
+			}
+			
+			// Create a reader to read the stream
+			const reader = response.body?.getReader();
+			if (!reader) {
+				throw new Error('ReadableStream not supported.');
+			}
+			
+			let accumulatedResponse = '';
+			
+			// Process the stream
+			while (true) {
+				const { done, value } = await reader.read();
+				
+				if (done) {
+					break;
+				}
+				
+				// Convert the chunk to text
+				const chunk = new TextDecoder().decode(value);
+				
+				// Parse the SSE data
+				const lines = chunk.split('\n');
+				let newContent = '';
+				
+				for (const line of lines) {
+					if (line.startsWith('data:')) {
+						try {
+							const data = JSON.parse(line.substring(5));
+							if (data.content) {
+								newContent += data.content;
+							}
+						} catch (e) {
+							// If not JSON, just append the raw data
+							newContent += line.substring(5);
+						}
+					}
+				}
+				
+				// Append to accumulated content
+				accumulatedResponse += newContent;
+				
+				// Update the last message in the state
+				setMessages(prevMessages => {
+					const newMessages = [...prevMessages];
+					if (newMessages.length > 0) {
+						// Update the last message's content
+						newMessages[newMessages.length - 1] = {
+							...newMessages[newMessages.length - 1],
+							content: accumulatedResponse
+						};
+					}
+					return newMessages;
+				});
+			}
 		} catch (error) {
 			console.error('Error sending message:', error);
+			
+			// Show error to user
+			setMessages(prev => [...prev, {
+				content: "Sorry, there was an error communicating with the server. Please try again.",
+				isUser: false
+			}]);
 		} finally {
 			setIsLoading(false);
 		}
