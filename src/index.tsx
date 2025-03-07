@@ -270,70 +270,44 @@ export function App() {
 			// Process the stream
 			while (true) {
 				const { done, value } = await reader.read();
-				if (done) break; // Exit loop if stream is finished
+				if (done) break;
 
 				// Decode the incoming chunk
 				const chunk = decoder.decode(value, { stream: true });
-
-				// Process each line (assuming your SSE lines start with "data:")
 				const lines = chunk.split('\n');
+
 				for (const line of lines) {
 					if (line.trim().startsWith('data:')) {
+						const content = line.slice(5).trim();
+						
+						// Skip if the content is a control message
+						if (content === '[DONE]' || content === 'done') continue;
+
 						try {
-							const jsonStr = line.trim().slice(5).trim();
-							// Optional: skip the [DONE] marker if used
-							if (jsonStr === '[DONE]' || jsonStr === 'done') continue;
-							const data = JSON.parse(jsonStr);
+							const data = JSON.parse(content);
 							if (data.content) {
 								accumulatedContent += data.content;
-								// Update your UI or state here
-								setMessages(prevMessages => {
-									const newMessages = [...prevMessages];
-									// Update the last message in the list with the new content
-									if (newMessages.length > 0) {
-										newMessages[newMessages.length - 1] = {
-											...newMessages[newMessages.length - 1],
-											content: accumulatedContent
-										};
-									}
-									return newMessages;
-								});
 							}
 						} catch (e) {
 							// If JSON parsing fails, append the raw content if it's not a control message
-							const content = line.slice(5).trim();
 							if (content !== '[DONE]' && content !== 'done') {
 								accumulatedContent += content;
-								setMessages(prevMessages => {
-									const newMessages = [...prevMessages];
-									if (newMessages.length > 0) {
-										newMessages[newMessages.length - 1] = {
-											...newMessages[newMessages.length - 1],
-											content: accumulatedContent
-										};
-									}
-									return newMessages;
-								});
 							}
 						}
+
+						// Update the last message with accumulated content
+						setMessages(prevMessages => {
+							const newMessages = [...prevMessages];
+							if (newMessages.length > 0) {
+								newMessages[newMessages.length - 1] = {
+									...newMessages[newMessages.length - 1],
+									content: accumulatedContent
+								};
+							}
+							return newMessages;
+						});
 					}
 				}
-				
-				// Append to accumulated content
-				accumulatedResponse += newContent;
-				
-				// Update the last message in the state
-				setMessages(prevMessages => {
-					const newMessages = [...prevMessages];
-					if (newMessages.length > 0) {
-						// Update the last message's content
-						newMessages[newMessages.length - 1] = {
-							...newMessages[newMessages.length - 1],
-							content: accumulatedResponse
-						};
-					}
-					return newMessages;
-				});
 			}
 		} catch (error) {
 			console.error('Error sending message:', error);
