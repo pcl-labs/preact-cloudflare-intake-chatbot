@@ -70,6 +70,26 @@ body {
 	transition: all 0.3s ease-in-out;
 }
 
+/* Inline mode styling - always full width and height, no animations */
+.chat-container.inline {
+	position: relative;
+	height: 100vh;
+	width: 100%;
+	max-width: 100%;
+	margin: 0;
+	overflow: hidden;
+	background-color: var(--bg-color);
+	box-shadow: none;
+	border: none;
+	transition: none;
+	/* Disable all transitions for inline mode */
+	animation: none;
+	/* Disable any animations */
+	/* Ensure immediate rendering without any animation delay */
+	opacity: 1;
+	transform: none;
+}
+
 /* Widget positioning */
 .chat-container.widget {
 	position: fixed;

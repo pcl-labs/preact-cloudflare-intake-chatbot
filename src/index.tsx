@@ -57,8 +57,8 @@ export function App() {
 	const [inputValue, setInputValue] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
 	const [previewFiles, setPreviewFiles] = useState<FileAttachment[]>([]);
-	const [isOpen, setIsOpen] = useState(true);
 	const [position, setPosition] = useState<ChatPosition>('widget');
+	const [isOpen, setIsOpen] = useState(position === 'inline' ? true : false);
 	const [teamId, setTeamId] = useState<string | null>(null);
 	const messageListRef = useRef<HTMLDivElement>(null);
 	const [isRecording, setIsRecording] = useState(false);
@@ -77,15 +77,18 @@ export function App() {
 			// Set position based on URL parameter
 			if (positionParam === 'widget' || positionParam === 'inline') {
 				setPosition(positionParam);
+				// Immediately update isOpen based on position
+				if (positionParam === 'inline') {
+					setIsOpen(true);
+				} else {
+					setIsOpen(false);
+				}
 			}
 
 			// Set teamId if available
 			if (teamIdParam) {
 				setTeamId(teamIdParam);
 			}
-
-			// Start in open state if inline position, closed otherwise
-			setIsOpen(positionParam === 'inline');
 		}
 	}, []);
 
@@ -106,7 +109,7 @@ export function App() {
 
 		// Listen for messages from parent
 		const handleParentMessage = (event: MessageEvent) => {
-			if (event.data && event.data.type) {
+			if (event.data && event.data.type && position === 'widget') {
 				switch (event.data.type) {
 					case 'toggleChat':
 						setIsOpen(prev => !prev);
@@ -126,7 +129,7 @@ export function App() {
 		return () => {
 			window.removeEventListener('message', handleParentMessage);
 		};
-	}, [isOpen]);
+	}, [isOpen, position]);
 
 	const adjustTextareaHeight = useCallback((target: HTMLTextAreaElement) => {
 		target.style.height = 'auto';
@@ -516,13 +519,13 @@ export function App() {
 			)}
 		
 			<div 
-				className={`chat-container ${position} ${isOpen ? 'open' : 'closed'}`} 
+				className={`chat-container ${position} ${position === 'widget' ? (isOpen ? 'open' : 'closed') : ''}`} 
 				role="application" 
 				aria-label="Chat interface"
-				aria-expanded={isOpen}
+				aria-expanded={position === 'inline' ? true : isOpen}
 			>
 				<ErrorBoundary>
-					{isOpen && (
+					{(position === 'inline' || isOpen) && (
 						<main className="chat-main">
 							{messages.length === 0 && (
 								<div className="welcome-message">
