@@ -59,7 +59,7 @@ export function App() {
 	const [previewFiles, setPreviewFiles] = useState<FileAttachment[]>([]);
 	const [position, setPosition] = useState<ChatPosition>('widget');
 	const [isOpen, setIsOpen] = useState(position === 'inline' ? true : false);
-	const [teamId, setTeamId] = useState<string | null>(null);
+	const [teamId, setTeamId] = useState<string>('demo');
 	const messageListRef = useRef<HTMLDivElement>(null);
 	const [isRecording, setIsRecording] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
@@ -85,7 +85,7 @@ export function App() {
 				}
 			}
 
-			// Set teamId if available
+			// Set teamId if available, otherwise keep the default "demo"
 			if (teamIdParam) {
 				setTeamId(teamIdParam);
 			}
