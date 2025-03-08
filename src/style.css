@@ -617,11 +617,14 @@ body {
 	margin-left: 0;
 	background-color: var(--message-bg-ai);
 	width: 100%;
+	min-height: 48px;
+	min-width: 120px;
 }
 
 .message-content {
 	font-size: 1rem;
 	line-height: 1.5;
+	min-height: 24px;
 }
 
 /* File Upload Styles */
