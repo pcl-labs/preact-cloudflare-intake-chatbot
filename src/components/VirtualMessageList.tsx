@@ -117,15 +117,6 @@ const VirtualMessageList: FunctionComponent<VirtualMessageListProps> = ({ messag
                     />
                 ))}
             </ErrorBoundary>
-            {isLoading && (
-                <div class="message message-ai">
-                    <div class="loading-indicator">
-                        <span class="dot"></span>
-                        <span class="dot"></span>
-                        <span class="dot"></span>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
