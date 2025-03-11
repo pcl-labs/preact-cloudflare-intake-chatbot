@@ -49,8 +49,8 @@ interface ChatMessage {
 	files?: FileAttachment[];
 }
 
+const ANIMATION_DURATION = 300;
 const RESIZE_DEBOUNCE_DELAY = 100;
-const INPUT_RESIZE_DEBOUNCE_DELAY = 50;
 
 export function App() {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -131,33 +131,51 @@ export function App() {
 		};
 	}, [isOpen, position]);
 
-	const adjustTextareaHeight = useCallback((target: HTMLTextAreaElement) => {
-		target.style.height = 'auto';
-		target.style.height = target.scrollHeight + 'px';
-	}, []);
-
-	const debouncedAdjustHeight = useCallback(
-		debounce((target: HTMLTextAreaElement) => adjustTextareaHeight(target), INPUT_RESIZE_DEBOUNCE_DELAY),
-		[adjustTextareaHeight]
-	);
-
 	const handleInputChange = useCallback((e: Event) => {
 		const target = e.currentTarget as HTMLTextAreaElement;
 		setInputValue(target.value);
-		debouncedAdjustHeight(target);
+		
+		// More reliable auto-expand logic
+		// Set to 0 first to force a recalculation of scrollHeight
+		target.style.height = '0';
+		// Add a small buffer to the scrollHeight to avoid text cutting off
+		const newHeight = Math.max(24, target.scrollHeight + 2);
+		target.style.height = `${newHeight}px`;
+		
+		// Force the browser to recalculate layout
+		setTimeout(() => {
+			// Double check the height after browser layout is updated
+			if (target.scrollHeight > parseInt(target.style.height)) {
+				target.style.height = `${target.scrollHeight + 2}px`;
+			}
+		}, 0);
 	}, []);
 
+	// Simple resize handler for window size changes
 	useEffect(() => {
-		const handleResize = debounce(() => {
+		const handleResize = () => {
 			const textarea = document.querySelector('.message-input') as HTMLTextAreaElement;
 			if (textarea) {
-				adjustTextareaHeight(textarea);
+				// Use the same improved auto-expand logic
+				textarea.style.height = '0';
+				const newHeight = Math.max(24, textarea.scrollHeight);
+				textarea.style.height = `${newHeight}px`;
 			}
-		}, RESIZE_DEBOUNCE_DELAY);
+		};
 
 		window.addEventListener('resize', handleResize);
 		return () => window.removeEventListener('resize', handleResize);
-	}, [adjustTextareaHeight]);
+	}, []);
+
+	// Initialize textarea height on mount
+	useEffect(() => {
+		const textarea = document.querySelector('.message-input') as HTMLTextAreaElement;
+		if (textarea && textarea.value) {
+			textarea.style.height = '0';
+			const newHeight = Math.max(24, textarea.scrollHeight);
+			textarea.style.height = `${newHeight}px`;
+		}
+	}, []);
 
 	const handlePhotoSelect = async (files: File[]) => {
 		const fileAttachments: FileAttachment[] = await Promise.all(
@@ -375,15 +393,16 @@ export function App() {
 			setMessages(prev => [...prev, textMessage]);
 		}
 
+		// Reset input
 		setInputValue('');
 		setPreviewFiles([]);
 		
-		// Reset textarea height
+		// Properly reset textarea height after sending message
 		const textarea = document.querySelector('.message-input') as HTMLTextAreaElement;
 		if (textarea) {
-			textarea.style.height = 'auto';
+			textarea.style.height = '24px'; // Reset to minimum height
 		}
-
+		
 		// Send message to API
 		sendMessageToAPI(inputValue.trim(), previewFiles);
 	};
@@ -682,19 +701,23 @@ export function App() {
 											))}
 										</div>
 									)}
-									<textarea
-										className="message-input"
-										placeholder="Type a message..."
-										rows={1}
-										value={inputValue}
-										onInput={handleInputChange}
-										onKeyPress={handleKeyPress}
-										disabled={isLoading}
-										aria-label="Message input"
-										aria-multiline="true"
-										aria-required="false"
-										aria-describedby="input-instructions"
-									/>
+									<div className="textarea-wrapper">
+										<textarea
+											className="message-input"
+											placeholder="Type a message..."
+											rows={1}
+											value={inputValue}
+											onInput={handleInputChange}
+											onKeyPress={handleKeyPress}
+											disabled={isLoading}
+											aria-label="Message input"
+											aria-multiline="true"
+											style={{ 
+												minHeight: '24px',
+												width: '100%'
+											}}
+										/>
+									</div>
 									<span id="input-instructions" className="sr-only">
 										Type your message and press Enter to send. Use the buttons below to attach files or record audio.
 									</span>

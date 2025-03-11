@@ -1,3 +1,7 @@
+* {
+	box-sizing: border-box;
+}
+
 :root {
 	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
 	line-height: 1.5;
@@ -38,7 +42,6 @@
 * {
 	margin: 0;
 	padding: 0;
-	box-sizing: border-box;
 	scrollbar-width: thin;
 	scrollbar-color: rgba(var(--accent-color-rgb), 0.5) transparent;
 }
@@ -337,12 +340,17 @@ body {
 	padding-left: 1rem;
 	padding-right: 1rem;
 	background-color: var(--bg-color);
+	height: auto;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
 }
 
 .input-container {
 	display: flex;
 	flex-direction: column;
 	max-width: 768px;
+	width: 100%;
 	margin: 0 auto;
 	position: relative;
 	background-color: var(--input-bg);
@@ -351,6 +359,8 @@ body {
 	padding: 0.75rem;
 	min-height: 56px;
 	gap: 0.75rem;
+	height: auto;
+	overflow: visible;
 }
 
 .input-preview {
@@ -1576,9 +1586,8 @@ kbd {
 
 .message-input {
 	flex: 1;
-	min-height: 72px;
-	max-height: 200px;
-	padding: 0;
+	min-height: 24px;
+	padding: 8px 0;
 	margin: 0;
 	font-size: 1rem;
 	line-height: 1.5;
@@ -1587,6 +1596,11 @@ kbd {
 	border: none;
 	resize: none;
 	outline: none;
+	overflow: hidden;
+	box-sizing: border-box;
+	display: block;
+	width: 100%;
+	z-index: 1;
 }
 
 .message-input::placeholder {
@@ -1819,4 +1833,11 @@ kbd {
 		bottom: 20px;
 		/* Already at bottom, just maintaining for clarity */
 	}
+}
+
+.textarea-wrapper {
+	width: 100%;
+	position: relative;
+	display: block;
+	flex: 1;
 }
