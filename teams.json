@@ -1,58 +1,40 @@
 [
   {
     "id": "demo",
-    "name": "Demo Law Firm",
+    "name": "Blawby Demo",
     "config": {
       "aiModel": "llama",
       "consultationFee": 0,
       "requiresPayment": false,
       "ownerEmail": "paulchrisluke@gmail.com",
-      "availableServices": ["general-consultation", "legal-advice"],
+      "availableServices": [
+        "general-consultation",
+        "legal-advice"
+      ],
       "domain": "demo.blawby.com",
       "description": "Demo law firm for testing purposes",
       "paymentLink": null
     }
   },
   {
-    "id": "test-team",
-    "name": "Test Law Firm",
+    "id": "north-carolina-legal-services",
+    "name": "North Carolina Legal Services",
     "config": {
       "aiModel": "llama",
-      "consultationFee": 150,
+      "consultationFee": 75,
       "requiresPayment": true,
-      "ownerEmail": "testowner@example.com",
-      "availableServices": ["family-law", "criminal-defense", "civil-litigation"],
-      "domain": "test.blawby.com",
-      "description": "Test law firm with various practice areas",
-      "paymentLink": "https://buy.stripe.com/test_123456"
-    }
-  },
-  {
-    "id": "family-law-team",
-    "name": "Family Law Specialists",
-    "config": {
-      "aiModel": "llama",
-      "consultationFee": 200,
-      "requiresPayment": true,
-      "ownerEmail": "family@example.com",
-      "availableServices": ["divorce", "child-custody", "adoption", "prenuptial-agreements"],
-      "domain": "family.blawby.com",
-      "description": "Specialized family law practice",
-      "paymentLink": "https://buy.stripe.com/family_123456"
-    }
-  },
-  {
-    "id": "criminal-defense-team",
-    "name": "Criminal Defense Attorneys",
-    "config": {
-      "aiModel": "llama",
-      "consultationFee": 300,
-      "requiresPayment": true,
-      "ownerEmail": "criminal@example.com",
-      "availableServices": ["dui-defense", "drug-charges", "assault", "white-collar-crime"],
-      "domain": "criminal.blawby.com",
-      "description": "Criminal defense specialists",
-      "paymentLink": "https://buy.stripe.com/criminal_123456"
+      "ownerEmail": "paulchrisluke@gmail.com",
+      "availableServices": [
+        "Family Law",
+        "Small Business and Nonprofits",
+        "Employment Law",
+        "Tenant Rights Law",
+        "Probate and Estate Planning",
+        "Special Education and IEP Advocacy"
+      ],
+      "domain": "northcarolinalegalservices.blawby.com",
+      "description": "Affordable, comprehensive legal services for North Carolina. Family Law, Small Business, Employment, Tenant Rights, Probate, Special Education, and more.",
+      "paymentLink": "https://app.blawby.com/northcarolinalegalservices/pay?amount=7500"
     }
   }
 ] 
