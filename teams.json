@@ -11,6 +11,20 @@
         "general-consultation",
         "legal-advice"
       ],
+      "serviceQuestions": {
+        "general-consultation": [
+          "What specific legal issue or question do you need help with?",
+          "Have you already taken any steps to address this issue?",
+          "What outcome are you hoping to achieve?",
+          "Do you have any relevant documents or evidence related to your situation?"
+        ],
+        "legal-advice": [
+          "What type of legal advice are you seeking?",
+          "What is the timeline or urgency of your situation?",
+          "Have you consulted with any other legal professionals about this?",
+          "What specific questions do you have about your legal rights or options?"
+        ]
+      },
       "domain": "demo.blawby.com",
       "description": "Demo law firm for testing purposes",
       "paymentLink": null,
@@ -36,6 +50,50 @@
         "Probate and Estate Planning",
         "Special Education and IEP Advocacy"
       ],
+      "serviceQuestions": {
+        "Family Law": [
+          "What specific family law issue are you dealing with? (divorce, custody, child support, etc.)",
+          "Are there any children involved in this situation?",
+          "Have you already filed any legal documents or court papers?",
+          "What is your current living situation and relationship status?",
+          "Do you have any existing court orders or agreements?"
+        ],
+        "Small Business and Nonprofits": [
+          "What type of business entity are you operating or planning to start?",
+          "What specific legal issue are you facing with your business?",
+          "Are you dealing with contracts, employment issues, or regulatory compliance?",
+          "What is the size and scope of your business operations?",
+          "Do you have any existing business documents or agreements?"
+        ],
+        "Employment Law": [
+          "What type of employment issue are you experiencing? (discrimination, harassment, wage issues, etc.)",
+          "Are you currently employed, recently terminated, or applying for jobs?",
+          "Have you reported this issue to your employer or any government agencies?",
+          "What evidence or documentation do you have related to this situation?",
+          "How long have you been dealing with this employment issue?"
+        ],
+        "Tenant Rights Law": [
+          "What specific tenant rights issue are you facing? (eviction, repairs, security deposit, etc.)",
+          "Are you currently renting or have you recently moved out?",
+          "Have you received any notices from your landlord?",
+          "What is the condition of your rental property?",
+          "Have you documented any issues with photos or written communication?"
+        ],
+        "Probate and Estate Planning": [
+          "Are you dealing with probate of an estate or planning your own estate?",
+          "What is the approximate value of the estate or assets involved?",
+          "Do you have a will or other estate planning documents?",
+          "Are there any disputes or conflicts among family members?",
+          "What specific questions do you have about the probate process or estate planning?"
+        ],
+        "Special Education and IEP Advocacy": [
+          "What grade level is your child in and what type of school do they attend?",
+          "What specific learning challenges or disabilities does your child have?",
+          "Do you have an existing IEP or 504 plan?",
+          "What specific issues are you having with the school or district?",
+          "Have you had any recent meetings with school staff about your child's needs?"
+        ]
+      },
       "domain": "northcarolinalegalservices.blawby.com",
       "description": "Affordable, comprehensive legal services for North Carolina. Family Law, Small Business, Employment, Tenant Rights, Probate, Special Education, and more.",
       "paymentLink": "https://app.blawby.com/northcarolinalegalservices/pay?amount=7500",
