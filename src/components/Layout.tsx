@@ -9,12 +9,20 @@ interface LayoutProps {
 const Layout: FunctionalComponent<LayoutProps> = ({ nav, children, sidebar }) => {
   return (
     <div class="app-layout">
+      {/* Left Navigation Column - Hidden on mobile */}
       <nav class="nav-column">
         {nav}
       </nav>
-      <main class="chat-column">
-        {children}
-      </main>
+      
+      {/* Main Content Area */}
+      <div class="main-content-area">
+        {/* Main Chat Column */}
+        <main class="chat-column">
+          {children}
+        </main>
+      </div>
+      
+      {/* Right Sidebar - Responsive */}
       <aside class="sidebar-column">
         {sidebar}
       </aside>

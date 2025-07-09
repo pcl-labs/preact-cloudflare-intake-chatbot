@@ -7,6 +7,7 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
+		"@tailwindcss/postcss": "^4.1.11",
 		"preact": "^10.25.3",
 		"preact-iso": "^2.9.1",
 		"preact-markdown": "^2.1.0",

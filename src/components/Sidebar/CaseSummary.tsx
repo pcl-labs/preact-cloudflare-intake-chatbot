@@ -14,7 +14,6 @@ const CaseSummary: FunctionalComponent<CaseSummaryProps> = ({ summary, onCreateC
         class="sidebar-create-case-btn"
         disabled={!hasSummary}
         onClick={onCreateCase}
-        style={{ marginTop: '1rem' }}
       >
         Create Case
       </button>

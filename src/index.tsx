@@ -1909,7 +1909,7 @@ export function App() {
 
 	return (
 		<Layout
-			nav={<div className="nav-placeholder">Case List / Navigation (placeholder)</div>}
+			nav={<div class="nav-placeholder">Case List / Navigation (placeholder)</div>}
 			sidebar={
 				<Sidebar
 					caseSummary={sidebarCaseSummary}

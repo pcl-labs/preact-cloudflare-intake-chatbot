@@ -10,17 +10,25 @@ interface SidebarAccordionSectionProps {
 }
 
 export const SidebarAccordionSection: FunctionalComponent<SidebarAccordionSectionProps> = ({ title, icon, open, onToggle, children }) => (
-  <div class="sidebar-card sidebar-accordion-section">
+  <div class="sidebar-accordion-section">
     <button
       class="sidebar-accordion-header"
       onClick={onToggle}
       aria-expanded={open}
     >
-      <span class="sidebar-accordion-icon">{icon}</span>
-      <span class="sidebar-accordion-title">{title}</span>
-      <span class="sidebar-accordion-arrow">{open ? '▲' : '▼'}</span>
+      <div class="sidebar-accordion-left">
+        <span class="sidebar-accordion-icon">{icon}</span>
+        <span class="sidebar-accordion-title">{title}</span>
+      </div>
+      <span class="sidebar-accordion-arrow" style={`transform: rotate(${open ? '180deg' : '0deg'})`}>
+        ▼
+      </span>
     </button>
-    {open && <div class="sidebar-accordion-content">{children}</div>}
+    {open && (
+      <div class="sidebar-accordion-content">
+        {children}
+      </div>
+    )}
   </div>
 );
 

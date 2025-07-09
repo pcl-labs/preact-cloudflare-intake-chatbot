@@ -11,14 +11,18 @@ interface TimelineListProps {
 }
 
 const TimelineList: FunctionalComponent<TimelineListProps> = ({ timeline }) => (
-  <ul class="sidebar-timeline-list">
-    {timeline.length === 0 ? <li>No events yet.</li> : timeline.map(event => (
-      <li class="sidebar-timeline-event" key={event.id}>
-        <span class="sidebar-timeline-label">{event.label}</span>
-        <span class="sidebar-timeline-timestamp">{event.timestamp}</span>
-      </li>
-    ))}
-  </ul>
+  <div class="sidebar-timeline-list">
+    {timeline.length === 0 ? (
+      <div class="sidebar-empty-state">No events yet.</div>
+    ) : (
+      timeline.map(event => (
+        <div class="sidebar-timeline-item" key={event.id}>
+          <span class="sidebar-timeline-label">{event.label}</span>
+          <span class="sidebar-timeline-timestamp">{event.timestamp}</span>
+        </div>
+      ))
+    )}
+  </div>
 );
 
 export default TimelineList; 
