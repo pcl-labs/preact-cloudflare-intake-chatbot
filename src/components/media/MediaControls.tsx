@@ -1,7 +1,7 @@
 import { FunctionComponent } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
 import AudioRecordingUI from './AudioRecordingUI';
-import features from '../config/features';
+import features from '../../config/features';
 
 interface MediaControlsProps {
 	onMediaCapture: (blob: Blob, type: 'audio' | 'video') => void;

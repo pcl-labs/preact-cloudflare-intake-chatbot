@@ -6,7 +6,14 @@ export default {
   ],
   darkMode: 'media',
   theme: {
-    extend: {},
+    extend: {
+      maxWidth: {
+        fill: '-webkit-fill-available',
+      },
+      maxHeight: {
+        fill: '-webkit-fill-available',
+      },
+    },
   },
   plugins: [],
 };

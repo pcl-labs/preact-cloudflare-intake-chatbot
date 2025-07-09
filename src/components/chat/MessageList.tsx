@@ -1,10 +1,10 @@
 import { FunctionComponent } from 'preact';
 import { useRef, useEffect, useState, useCallback } from 'preact/hooks';
-import Message from './Message';
-import LoadingIndicator from './LoadingIndicator';
+import MessageBubble from './MessageBubble';
+import { LoadingIndicator } from '../ui';
 import { memo } from 'preact/compat';
-import { debounce } from '../utils/debounce';
-import { ErrorBoundary } from './ErrorBoundary';
+import { debounce } from '../../utils/debounce';
+import { ErrorBoundary } from '../ui';
 
 interface FileAttachment {
     name: string;
@@ -183,7 +183,7 @@ const VirtualMessageList: FunctionComponent<VirtualMessageListProps> = ({
             )}
             <ErrorBoundary>
                 {visibleMessages.map((message, index) => (
-                    <Message
+                    <MessageBubble
                         key={startIndex + index}
                         content={message.content}
                         isUser={message.isUser}

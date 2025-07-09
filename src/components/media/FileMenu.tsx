@@ -1,6 +1,6 @@
 import { FunctionComponent } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
-import createLazyComponent from '../utils/LazyComponent';
+import createLazyComponent from '../../utils/LazyComponent';
 
 // Create lazy-loaded CameraModal
 const LazyCameraModal = createLazyComponent(

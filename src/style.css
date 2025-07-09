@@ -2745,6 +2745,8 @@ kbd {
 .sidebar-content {
 	height: 100%;
 	overflow-y: auto;
+	overflow-x: hidden;
+	max-width: 100%;
 }
 
 /* Responsive Layout */
@@ -2778,6 +2780,7 @@ kbd {
 
 	.sidebar-column {
 		width: 100%;
+		max-width: 400px;
 		border-left: none;
 		border-top: 1px solid var(--border-color);
 	}

@@ -1,6 +1,6 @@
 import { FunctionComponent } from 'preact';
 import { useRef, useEffect, useState } from 'preact/hooks';
-import Modal from './Modal';
+import { Modal } from '../ui';
 
 interface CameraModalProps {
     isOpen: boolean;

@@ -2,28 +2,28 @@ import { FunctionComponent } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
 import { marked } from 'marked';
-import LazyMedia from './LazyMedia';
+import { LazyMedia } from '../media';
 import CaseCanvas from './CaseCanvas';
-import createLazyComponent from '../utils/LazyComponent';
+import createLazyComponent from '../../utils/LazyComponent';
 
 // Lazy load scheduling components
 const LazyDateSelector = createLazyComponent(
-	() => import('./scheduling/DateSelector'),
+	() => import('../scheduling/DateSelector'),
 	'DateSelector'
 );
 
 const LazyTimeOfDaySelector = createLazyComponent(
-	() => import('./scheduling/TimeOfDaySelector'),
+	() => import('../scheduling/TimeOfDaySelector'),
 	'TimeOfDaySelector'
 );
 
 const LazyTimeSlotSelector = createLazyComponent(
-	() => import('./scheduling/TimeSlotSelector'),
+	() => import('../scheduling/TimeSlotSelector'),
 	'TimeSlotSelector'
 );
 
 const LazyScheduleConfirmation = createLazyComponent(
-	() => import('./scheduling/ScheduleConfirmation'),
+	() => import('../scheduling/ScheduleConfirmation'),
 	'ScheduleConfirmation'
 );
 

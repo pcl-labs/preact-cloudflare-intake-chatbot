@@ -1,7 +1,7 @@
 import { FunctionComponent } from 'preact';
 import { useRef, useEffect, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
-import Lightbox from './Lightbox';
+import { Lightbox } from '../ui';
 
 interface LazyMediaProps {
     src: string;

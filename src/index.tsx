@@ -2,10 +2,10 @@ import { hydrate, prerender as ssr } from 'preact-iso';
 import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
 // Remove direct imports of components that will be lazy-loaded
 // import FileMenu from './components/FileMenu';
-import LoadingIndicator from './components/LoadingIndicator';
-// import MediaControls from './components/MediaControls';
-import VirtualMessageList from './components/VirtualMessageList';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { LoadingIndicator, ErrorBoundary } from './components/ui';
+import { MessageList } from './components/chat';
+import { ChatSidebar } from './components/sidebar';
+import { MessengerLayout } from './components/layout';
 import { debounce } from './utils/debounce';
 import createLazyComponent from './utils/LazyComponent';
 import features from './config/features';
@@ -19,28 +19,26 @@ import {
   formatFormData 
 } from './utils/conversationalForm';
 import './style.css';
-import Layout from './components/Layout';
-import Sidebar from './components/Sidebar';
 
 // Create lazy-loaded components
 const LazyMediaControls = createLazyComponent(
-	() => import('./components/MediaControls'),
+	() => import('./components/media/MediaControls'),
 	'MediaControls'
 );
 
 const LazyFileMenu = createLazyComponent(
-	() => import('./components/FileMenu'),
+	() => import('./components/media/FileMenu'),
 	'FileMenu'
 );
 
 // Lazy-load other components that might not be needed immediately
 const LazyLightbox = createLazyComponent(
-	() => import('./components/Lightbox'),
+	() => import('./components/ui/Lightbox'),
 	'Lightbox'
 );
 
 const LazyCameraModal = createLazyComponent(
-	() => import('./components/CameraModal'),
+	() => import('./components/media/CameraModal'),
 	'CameraModal'
 );
 
@@ -1901,17 +1899,17 @@ export function App() {
 		website: teamConfig.domain ? `https://${teamConfig.domain}` : undefined,
 		email: teamConfig.ownerEmail || undefined,
 		phone: teamConfig.phone || undefined,
-		logo: teamConfig.profileImage || '/public/team-profile-demo.png',
+		logo: teamConfig.profileImage || '/team-profile-demo.png',
 		brandColor: teamConfig.brandColor || undefined,
 		accentColor: teamConfig.accentColor || undefined,
 		verified: !!teamConfig.ownerEmail
 	} : undefined;
 
 	return (
-		<Layout
+		<MessengerLayout
 			nav={<div class="nav-placeholder">Case List / Navigation (placeholder)</div>}
 			sidebar={
-				<Sidebar
+				<ChatSidebar
 					caseSummary={sidebarCaseSummary}
 					files={sidebarFiles}
 					timeline={sidebarTimeline}
@@ -1921,7 +1919,7 @@ export function App() {
 			}
 		>
 			<div className="chat-main">
-				<VirtualMessageList 
+				<MessageList 
 					messages={messages}
 					onDateSelect={handleDateSelect}
 					onTimeOfDaySelect={handleTimeOfDaySelect}
@@ -2053,7 +2051,7 @@ export function App() {
 					</div>
 				</div>
 			</div>
-		</Layout>
+		</MessengerLayout>
 	);
 }
 

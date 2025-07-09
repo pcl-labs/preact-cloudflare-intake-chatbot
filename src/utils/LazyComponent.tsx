@@ -1,7 +1,7 @@
 import { ComponentType, FunctionComponent, Fragment } from 'preact';
 import { Suspense, lazy } from 'preact/compat';
 import { useState, useEffect } from 'preact/hooks';
-import SkeletonLoader from '../components/SkeletonLoader';
+import { SkeletonLoader } from '../components/ui';
 
 // Configurations for different component types
 const LOADER_CONFIGS = {
