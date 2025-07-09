@@ -19,6 +19,8 @@ import {
   formatFormData 
 } from './utils/conversationalForm';
 import './style.css';
+import Layout from './components/Layout';
+import Sidebar from './components/Sidebar';
 
 // Create lazy-loaded components
 const LazyMediaControls = createLazyComponent(
@@ -104,6 +106,7 @@ interface ChatMessage {
 	};
 	isLoading?: boolean;
 	id?: string;
+	timestamp?: string;
 }
 
 const ANIMATION_DURATION = 300;
@@ -156,12 +159,22 @@ export function App() {
 		introMessage: string | null;
 		availableServices: string[];
 		serviceQuestions?: Record<string, string[]>;
+		domain?: string;
+		ownerEmail?: string;
+		phone?: string;
+		brandColor?: string;
+		accentColor?: string;
 	}>({
 		name: 'Legal AI Assistant',
 		profileImage: null,
 		introMessage: null,
 		availableServices: [],
-		serviceQuestions: {}
+		serviceQuestions: {},
+		domain: 'blawby.com',
+		ownerEmail: 'info@blawby.com',
+		phone: '+1-555-555-5555',
+		brandColor: '#4CAF50',
+		accentColor: '#FFC107'
 	});
 
 	// Track drag counter for better handling of nested elements
@@ -291,7 +304,12 @@ export function App() {
 						profileImage: team.config.profileImage || null,
 						introMessage: team.config.introMessage || null,
 						availableServices: team.config.availableServices || [],
-						serviceQuestions: team.config.serviceQuestions || {}
+						serviceQuestions: team.config.serviceQuestions || {},
+						domain: team.config.domain || 'blawby.com',
+						ownerEmail: team.config.ownerEmail || 'info@blawby.com',
+						phone: team.config.phone || '+1-555-555-5555',
+						brandColor: team.config.brandColor || '#4CAF50',
+						accentColor: team.config.accentColor || '#FFC107'
 					};
 					setTeamConfig(config);
 				}
@@ -1847,286 +1865,195 @@ export function App() {
 		};
 	}, []);
 
+	// Extract latest case summary from messages with caseCanvas
+	const caseCanvasMessages = messages.filter(m => m.caseCanvas && m.caseCanvas.caseSummary);
+	const latestCaseCanvas = caseCanvasMessages.length > 0 ? caseCanvasMessages[caseCanvasMessages.length - 1].caseCanvas : null;
+	const sidebarCaseSummary = latestCaseCanvas ? latestCaseCanvas.caseSummary : 'No case summary yet.';
+
+	// Collect all files from all messages
+	const sidebarFiles = messages
+		.flatMap(m => m.files || [])
+		.map((file, idx) => ({
+			id: file.url || String(idx),
+			name: file.name,
+			url: file.url,
+			type: file.type
+		}));
+
+	// Timeline: all caseCanvas events, most recent at bottom
+	const sidebarTimeline = caseCanvasMessages.map((m, idx) => ({
+		id: m.id || String(idx),
+		label: m.caseCanvas.service ? `Summary: ${m.caseCanvas.service}` : 'Case Summary',
+		timestamp: m.timestamp || ''
+	}));
+
+	// Handler for sidebar Create Case button
+	const handleSidebarCreateCase = () => {
+		alert('Create Case button clicked! (Implement submission logic here)');
+		// TODO: Implement actual case/contact submission logic
+	};
+
+	// Map team config to sidebar team info
+	const sidebarTeam = teamConfig ? {
+		name: teamConfig.name || '',
+		tagline: teamConfig.introMessage || '',
+		description: teamConfig.description || '',
+		website: teamConfig.domain ? `https://${teamConfig.domain}` : undefined,
+		email: teamConfig.ownerEmail || undefined,
+		phone: teamConfig.phone || undefined,
+		logo: teamConfig.profileImage || '/public/team-profile-demo.png',
+		brandColor: teamConfig.brandColor || undefined,
+		accentColor: teamConfig.accentColor || undefined,
+		verified: !!teamConfig.ownerEmail
+	} : undefined;
+
 	return (
-		<>
-			{isDragging && (
-				<div 
-					className="drag-overlay" 
-					role="dialog"
-					aria-label="File upload"
-					aria-modal="true"
-				>
-					<div className="drag-message">
-						<svg 
-							className="drag-message-icon" 
-							xmlns="http://www.w3.org/2000/svg" 
-							viewBox="0 0 24 24" 
-							fill="none" 
-							stroke="currentColor" 
-							stroke-width="2" 
-							stroke-linecap="round" 
-							stroke-linejoin="round"
-							aria-hidden="true"
-						>
-							<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
-							<path d="M12 12v9"></path>
-							<path d="m16 16-4-4-4 4"></path>
-						</svg>
-						<h3 className="drag-message-title">Drop Files to Upload</h3>
-						<p className="drag-message-subtitle">We accept images, videos, and document files</p>
-					</div>
-				</div>
-			)}
-		
-			{/* Place toggle button outside main container for widget mode */}
-			{position === 'widget' && (
-				<button 
-					className={`chat-toggle standalone ${isOpen ? 'chat-open' : 'chat-closed'}`}
-					onClick={() => setIsOpen(prev => !prev)}
-					aria-label={isOpen ? "Minimize chat" : "Open chat"}
-					title={isOpen ? "Minimize chat" : "Open chat"}
-				>
-					{isOpen ? (
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-							<path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
-						</svg>
-					) : (
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-							<path fill="currentColor" d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z" />
-						</svg>
-					)}
-				</button>
-			)}
-		
-			<div 
-				className={`chat-container ${position} ${position === 'widget' ? (isOpen ? 'open' : 'closed') : ''}`} 
-				role="application" 
-				aria-label="Chat interface"
-				aria-expanded={position === 'inline' ? true : isOpen}
-			>
-				<ErrorBoundary>
-					{(position === 'inline' || isOpen) && (
-						<>
-							<main className="chat-main">
-							{messages.length === 0 && (
-								<div className="welcome-message">
-									<div className="welcome-card">
-										<div className="welcome-icon">
-											{teamConfig.profileImage ? (
-												<img 
-													src={teamConfig.profileImage} 
-													alt={`${teamConfig.name} logo`}
-													className="team-profile-image"
-												/>
-											) : (
-												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-													<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-													<path d="M9 15h6"></path>
-													<path d="M11 9h1"></path>
-													<path d="M12 9v3"></path>
-													<path d="M8 9h.01"></path>
-													<path d="M16 9h.01"></path>
-												</svg>
-											)}
-										</div>
-										<h2>{teamConfig.name}</h2>
-										<p>{teamConfig.introMessage || "I'm an AI assistant designed to help you get started with your case."}</p>
-										<div className="welcome-actions">
-											<p>How can I help today?</p>
-											<div className="welcome-buttons">
-												<button 
-													className="welcome-action-button primary" 
-													onClick={handleCreateCaseStart}
-												>
-													Create Case
-												</button>
-												<button 
-													className="welcome-action-button" 
-													onClick={handleScheduleStart}
-												>
-													Request a consultation
-												</button>
-												<button 
-													className="welcome-action-button" 
-													onClick={() => {
-														const servicesMessage: ChatMessage = {
-															content: "Tell me about your firm's services",
-															isUser: true
-														};
-														setMessages([servicesMessage]);
-														
-														// Add placeholder message with loading indicator (ChatGPT style)
-														const loadingMessageId = crypto.randomUUID();
-														const loadingMessage: ChatMessage = {
-															content: "Let me tell you about our services...",
-															isUser: false,
-															isLoading: true,
-															id: loadingMessageId
-														};
-														setMessages(prev => [...prev, loadingMessage]);
-														
-														// Simulate AI response
-														setTimeout(() => {
-															// Update the loading message with actual content
-															setMessages(prev => prev.map(msg => 
-																msg.id === loadingMessageId 
-																	? {
-																		...msg,
-																		content: "Our firm specializes in several practice areas including business law, intellectual property, contract review, and regulatory compliance. We offer personalized legal counsel to help businesses navigate complex legal challenges. Would you like more details about any specific service?",
-																		isLoading: false
-																	}
-																	: msg
-															));
-														}, 1000);
-													}}
-												>
-													Learn about our services
-												</button>
-											</div>
-										</div>
-									</div>
-								</div>
-							)}
-							<VirtualMessageList 
-								messages={messages}
-								onDateSelect={handleDateSelect}
-								onTimeOfDaySelect={handleTimeOfDaySelect}
-								onTimeSlotSelect={handleTimeSlotSelect}
-								onRequestMoreDates={handleRequestMoreDates}
-								onServiceSelect={handleServiceSelect}
-								onUrgencySelect={handleUrgencySelect}
-								position={position}
-							/>
-							<div className="input-area" role="form" aria-label="Message composition">
-								<div className="input-container" style={{
-									maxWidth: position === 'inline' ? 'none' : '768px',
-									margin: position === 'inline' ? '0' : '0 auto'
-								}}>
-									{previewFiles.length > 0 && (
-										<div className="input-preview" role="list" aria-label="File attachments">
-											{previewFiles.map((file, index) => (
-												<div 
-													className={`input-preview-item ${file.type.startsWith('image/') ? 'image-preview' : 'file-preview'}`}
-													key={index}
-													role="listitem"
-												>
-													{file.type.startsWith('image/') ? (
-														<>
-															<img src={file.url} alt={`Preview of ${file.name}`} />
-														</>
-													) : (
-														<>
-															<div className="file-thumbnail" aria-hidden="true">
-																{getFileIcon(file)}
-															</div>
-															<div className="file-info">
-																<div className="file-name">{file.name.length > 15 ? `${file.name.substring(0, 15)}...` : file.name}</div>
-																<div className="file-ext">{file.name.split('.').pop()}</div>
-															</div>
-														</>
-													)}
-													<button
-														type="button"
-														className="input-preview-remove"
-														onClick={() => removePreviewFile(index)}
-														title="Remove file"
-														aria-label={`Remove ${file.name}`}
-													>
-														<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-															<path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
-														</svg>
-													</button>
+		<Layout
+			nav={<div className="nav-placeholder">Case List / Navigation (placeholder)</div>}
+			sidebar={
+				<Sidebar
+					caseSummary={sidebarCaseSummary}
+					files={sidebarFiles}
+					timeline={sidebarTimeline}
+					onCreateCase={handleSidebarCreateCase}
+					team={sidebarTeam}
+				/>
+			}
+		>
+			<div className="chat-main">
+				<VirtualMessageList 
+					messages={messages}
+					onDateSelect={handleDateSelect}
+					onTimeOfDaySelect={handleTimeOfDaySelect}
+					onTimeSlotSelect={handleTimeSlotSelect}
+					onRequestMoreDates={handleRequestMoreDates}
+					onServiceSelect={handleServiceSelect}
+					onUrgencySelect={handleUrgencySelect}
+					position={position}
+				/>
+				<div className="input-area" role="form" aria-label="Message composition">
+					<div className="input-container" style={{
+						maxWidth: position === 'inline' ? 'none' : '768px',
+						margin: position === 'inline' ? '0' : '0 auto'
+					}}>
+						{previewFiles.length > 0 && (
+							<div className="input-preview" role="list" aria-label="File attachments">
+								{previewFiles.map((file, index) => (
+									<div 
+										className={`input-preview-item ${file.type.startsWith('image/') ? 'image-preview' : 'file-preview'}`}
+										key={index}
+										role="listitem"
+									>
+										{file.type.startsWith('image/') ? (
+											<>
+												<img src={file.url} alt={`Preview of ${file.name}`} />
+											</>
+										) : (
+											<>
+												<div className="file-thumbnail" aria-hidden="true">
+													{getFileIcon(file)}
 												</div>
-											))}
-										</div>
-									)}
-									<div className="textarea-wrapper">
-										<textarea
-											className="message-input"
-											placeholder="Type a message..."
-											rows={1}
-											value={inputValue}
-											onInput={handleInputChange}
-											onKeyPress={handleKeyPress}
+												<div className="file-info">
+													<div className="file-name">{file.name.length > 15 ? `${file.name.substring(0, 15)}...` : file.name}</div>
+													<div className="file-ext">{file.name.split('.').pop()}</div>
+												</div>
+											</>
+										)}
+										<button
+											type="button"
+											className="input-preview-remove"
+											onClick={() => removePreviewFile(index)}
+											title="Remove file"
+											aria-label={`Remove ${file.name}`}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+												<path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
+											</svg>
+										</button>
+									</div>
+								))}
+							</div>
+						)}
+						<div className="textarea-wrapper">
+							<textarea
+								className="message-input"
+								placeholder="Type a message..."
+								rows={1}
+								value={inputValue}
+								onInput={handleInputChange}
+								onKeyPress={handleKeyPress}
+								disabled={false}
+								aria-label="Message input"
+								aria-multiline="true"
+								style={{ 
+									minHeight: '24px',
+									width: '100%'
+								}}
+							/>
+						</div>
+						<span id="input-instructions" className="sr-only">
+							Type your message and press Enter to send. Use the buttons below to attach files or record audio.
+						</span>
+						<div className="input-controls-row">
+							<div className="input-controls">
+								{!isRecording && (
+									<div className="input-left-controls">
+										<LazyFileMenu
+											onPhotoSelect={handlePhotoSelect}
+											onCameraCapture={handleCameraCapture}
+											onFileSelect={handleFileSelect}
+										/>
+										
+										<LazyScheduleButton
+											onClick={handleScheduleStart}
 											disabled={false}
-											aria-label="Message input"
-											aria-multiline="true"
-											style={{ 
-												minHeight: '24px',
-												width: '100%'
-											}}
 										/>
 									</div>
-									<span id="input-instructions" className="sr-only">
-										Type your message and press Enter to send. Use the buttons below to attach files or record audio.
-									</span>
-									<div className="input-controls-row">
-										<div className="input-controls">
-											{!isRecording && (
-												<div className="input-left-controls">
-													<LazyFileMenu
-														onPhotoSelect={handlePhotoSelect}
-														onCameraCapture={handleCameraCapture}
-														onFileSelect={handleFileSelect}
-													/>
-													
-													<LazyScheduleButton
-														onClick={handleScheduleStart}
-														disabled={false}
-													/>
-												</div>
+								)}
+								
+								<div className="send-controls">
+									{features.enableAudioRecording && (
+										<LazyMediaControls
+											onMediaCapture={handleMediaCapture}
+											onRecordingStateChange={setIsRecording}
+										/>
+									)}
+									
+									<button
+										className="send-button"
+										type="button"
+										onClick={handleSubmit}
+										disabled={(!inputValue.trim() && previewFiles.length === 0)}
+										aria-label={(!inputValue.trim() && previewFiles.length === 0) ? "Send message (disabled)" : "Send message"}
+									>
+										<svg
+											viewBox="0 0 24 24"
+											className="send-icon"
+											xmlns="http://www.w3.org/2000/svg"
+											aria-hidden="true"
+										>
+											{(!inputValue.trim() && previewFiles.length === 0) ? (
+												// Paper plane icon when nothing to send
+												<path
+													fill="currentColor"
+													d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+												/>
+											) : (
+												// Up arrow icon when ready to send
+												<path
+													fill="currentColor"
+													d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"
+												/>
 											)}
-											
-											<div className="send-controls">
-												{features.enableAudioRecording && (
-													<LazyMediaControls
-														onMediaCapture={handleMediaCapture}
-														onRecordingStateChange={setIsRecording}
-													/>
-												)}
-												
-												<button
-													className="send-button"
-													type="button"
-													onClick={handleSubmit}
-													disabled={(!inputValue.trim() && previewFiles.length === 0)}
-													aria-label={(!inputValue.trim() && previewFiles.length === 0) ? "Send message (disabled)" : "Send message"}
-												>
-													<svg
-														viewBox="0 0 24 24"
-														className="send-icon"
-														xmlns="http://www.w3.org/2000/svg"
-														aria-hidden="true"
-													>
-														{(!inputValue.trim() && previewFiles.length === 0) ? (
-															// Paper plane icon when nothing to send
-															<path
-																fill="currentColor"
-																d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
-															/>
-														) : (
-															// Up arrow icon when ready to send
-															<path
-																fill="currentColor"
-																d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"
-															/>
-														)}
-													</svg>
-												</button>
-											</div>
-										</div>
-									</div>
+										</svg>
+									</button>
 								</div>
 							</div>
-							<div className="disclaimer-text">
-								Blawby can make mistakes. Check for important information.
-							</div>
-						</main>
-						</>
-					)}
-				</ErrorBoundary>
+						</div>
+					</div>
+				</div>
 			</div>
-		</>
+		</Layout>
 	);
 }
 

@@ -1,4 +1,5 @@
 import { FunctionComponent } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
 import { marked } from 'marked';
 import LazyMedia from './LazyMedia';
@@ -303,6 +304,15 @@ const Message: FunctionComponent<MessageProps> = memo(({
 		file.type.startsWith('audio/')
 	);
 
+	// Only show CaseCanvas inline for mobile (width <= 768px)
+	const [isMobile, setIsMobile] = useState(false);
+	useEffect(() => {
+		const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+		checkMobile();
+		window.addEventListener('resize', checkMobile);
+		return () => window.removeEventListener('resize', checkMobile);
+	}, []);
+
 	return (
 		<div class={`message ${isUser ? 'message-user' : 'message-ai'} ${hasOnlyMedia ? 'media-only' : ''}`}>
 			<div class="message-content">
@@ -355,8 +365,8 @@ const Message: FunctionComponent<MessageProps> = memo(({
 					</div>
 				)}
 				
-				{/* Display case canvas */}
-				{caseCanvas && (
+				{/* Display case canvas only on mobile */}
+				{caseCanvas && isMobile && (
 					<CaseCanvas
 						service={caseCanvas.service}
 						caseSummary={caseCanvas.caseSummary}

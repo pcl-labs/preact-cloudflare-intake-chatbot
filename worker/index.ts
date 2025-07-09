@@ -471,28 +471,28 @@ async function handleChat(request: Request, env: Env, corsHeaders: Record<string
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
 
   try {
     const body = await parseJsonBody(request) as ChatRequest;
     
     if (!body.messages?.length) {
       return new Response(JSON.stringify({ error: 'Messages required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+      }
 
     // Get team config
     let teamConfig: TeamConfig = {};
-    if (body.teamId) {
+      if (body.teamId) {
       const teamRow = await env.DB.prepare('SELECT config FROM teams WHERE id = ?').bind(body.teamId).first();
-      if (teamRow) {
-        try {
+        if (teamRow) {
+          try {
           teamConfig = JSON.parse(teamRow.config as string);
-        } catch (e) {
+          } catch (e) {
           console.warn('Failed to parse team config:', e);
         }
       }
@@ -536,45 +536,45 @@ async function handleChat(request: Request, env: Env, corsHeaders: Record<string
       shouldStartCaseCreation: false, // No longer suggesting case creation
       timestamp: new Date().toISOString()
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
 
-  } catch (error) {
+    } catch (error) {
     console.error('Chat error:', error);
     return new Response(JSON.stringify({ error: 'Chat service unavailable' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
   }
-}
 
 // Case creation handler
 async function handleCaseCreation(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
   if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
+  return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+    status: 405,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
 
   try {
     const body = await parseJsonBody(request) as CaseCreationRequest;
     
     if (!body.teamId || !body.step) {
       return new Response(JSON.stringify({ error: 'Missing teamId or step' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
 
     // Get team config
     const teamRow = await env.DB.prepare('SELECT config FROM teams WHERE id = ?').bind(body.teamId).first();
     if (!teamRow) {
       return new Response(JSON.stringify({ error: 'Team not found' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
 
     let teamConfig: TeamConfig = {};
     try {
@@ -622,7 +622,7 @@ async function handleCaseCreation(request: Request, env: Env, corsHeaders: Recor
               await env.CHAT_SESSIONS.put(body.sessionId, JSON.stringify(sessionData), {
                 expirationTtl: 24 * 60 * 60 // 24 hours
               });
-            } catch (error) {
+          } catch (error) {
               console.warn('Failed to save case creation session:', error);
             }
           }
@@ -639,28 +639,28 @@ async function handleCaseCreation(request: Request, env: Env, corsHeaders: Recor
           ];
           
           if (questions.length > 0) {
-            return new Response(JSON.stringify({
+        return new Response(JSON.stringify({ 
               step: 'questions',
               message: questions[0],
               currentQuestion: 1,
               totalQuestions: questions.length,
               selectedService: body.service,
               qualityScore: quality
-            }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-          } else {
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } else {
             // No questions, go straight to case details
-            return new Response(JSON.stringify({
+      return new Response(JSON.stringify({ 
               step: 'case-details',
               message: `Thank you for selecting ${body.service}. Please provide a detailed description of your situation.`,
               selectedService: body.service,
               qualityScore: quality
             }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-          }
-        }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+  }
 
       case 'questions':
         const questions = teamConfig.serviceQuestions?.[body.service!] || [
@@ -680,8 +680,8 @@ async function handleCaseCreation(request: Request, env: Env, corsHeaders: Recor
             qualityScore: quality,
             questionText: questions[currentIndex] // Include the actual question text
           }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
                 } else {
           // All questions answered, move to case review step
           const answers = body.answers || {};
@@ -700,7 +700,7 @@ async function handleCaseCreation(request: Request, env: Env, corsHeaders: Recor
           // Get quality assessment with the auto-generated description
           const initialQuality = await assessCaseQuality(enhancedBody, aiService);
           
-          return new Response(JSON.stringify({
+      return new Response(JSON.stringify({ 
             step: 'case-review',
             message: `Thank you for answering those questions. Let me review your case and provide a summary.`,
             selectedService: body.service,
@@ -919,18 +919,18 @@ async function handleForms(request: Request, env: Env, corsHeaders: Record<strin
     
     if (!body.email || !body.phoneNumber || !body.caseDetails || !body.teamId) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
 
     // Validate email
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
       return new Response(JSON.stringify({ error: 'Invalid email format' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
 
     const formId = crypto.randomUUID();
     
@@ -954,26 +954,26 @@ async function handleForms(request: Request, env: Env, corsHeaders: Record<strin
       formId,
       message: 'Form submitted successfully. A lawyer will contact you within 24 hours.'
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
 
-  } catch (error) {
+    } catch (error) {
     console.error('Form error:', error);
     return new Response(JSON.stringify({ error: 'Form submission failed' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
   }
-}
 
 // Teams handler
 async function handleTeams(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
   if (request.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
+  return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+    status: 405,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
 
   try {
     const rows = await env.DB.prepare('SELECT id, name, config FROM teams').all();
@@ -984,14 +984,14 @@ async function handleTeams(request: Request, env: Env, corsHeaders: Record<strin
     }));
 
     return new Response(JSON.stringify(teams), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
   } catch (error) {
     console.error('Teams error:', error);
     return new Response(JSON.stringify({ error: 'Failed to fetch teams' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
   }
 }
 
@@ -1025,14 +1025,14 @@ async function handleScheduling(request: Request, env: Env, corsHeaders: Record<
         appointmentId, body.teamId, body.email, body.phoneNumber || '',
         body.preferredDate, body.preferredTime || '', body.caseType, body.notes || ''
       ).run();
-
-      return new Response(JSON.stringify({
+          
+          return new Response(JSON.stringify({
         success: true,
         appointmentId,
         message: 'Appointment requested successfully. We will contact you within 24 hours.'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
     } catch (error) {
       console.error('Scheduling error:', error);
       return new Response(JSON.stringify({ error: 'Scheduling failed' }), {
@@ -1045,19 +1045,19 @@ async function handleScheduling(request: Request, env: Env, corsHeaders: Record<
   if (request.method === 'GET') {
     const timeSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
     
-    return new Response(JSON.stringify({
+            return new Response(JSON.stringify({
       availableSlots: timeSlots,
       timezone: 'America/New_York'
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
   }
 
   return new Response(JSON.stringify({ error: 'Method not allowed' }), {
     status: 405,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
 
 // Session handler
 async function handleSessions(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
@@ -1071,17 +1071,17 @@ async function handleSessions(request: Request, env: Env, corsHeaders: Record<st
       if (!sessionId) {
         return new Response(JSON.stringify({ error: 'Session ID required' }), {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
       }
 
       const sessionData = await env.CHAT_SESSIONS.get(sessionId);
       if (!sessionData) {
         return new Response(JSON.stringify({ error: 'Session not found' }), {
           status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
 
       return new Response(sessionData, {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1091,8 +1091,8 @@ async function handleSessions(request: Request, env: Env, corsHeaders: Record<st
       console.error('Session retrieval error:', error);
       return new Response(JSON.stringify({ error: 'Session retrieval failed' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
     }
   }
 
@@ -1182,8 +1182,8 @@ async function handleFiles(request: Request, env: Env, corsHeaders: Record<strin
       if (!file) {
         return new Response(JSON.stringify({ error: 'No file provided' }), {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
       }
 
       // Validate file type and size
@@ -1199,9 +1199,9 @@ async function handleFiles(request: Request, env: Env, corsHeaders: Record<strin
       if (!allowedTypes.includes(file.type)) {
         return new Response(JSON.stringify({ error: 'File type not allowed' }), {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
 
       // 10MB limit
       if (file.size > 10 * 1024 * 1024) {
@@ -1246,16 +1246,16 @@ async function handleFiles(request: Request, env: Env, corsHeaders: Record<strin
         fileType: file.type,
         fileSize: file.size,
         url: `/api/files/${fileId}`
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
 
     } catch (error) {
       console.error('File upload error:', error);
       return new Response(JSON.stringify({ error: 'File upload failed' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
     }
   }
 
@@ -1265,9 +1265,9 @@ async function handleFiles(request: Request, env: Env, corsHeaders: Record<strin
       const fileId = path.split('/').pop();
       if (!fileId) {
         return new Response(JSON.stringify({ error: 'File ID required' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
       }
 
       // Get file metadata from database
