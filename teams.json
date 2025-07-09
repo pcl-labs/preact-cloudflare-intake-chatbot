@@ -13,10 +13,10 @@
       ],
       "serviceQuestions": {
         "general-consultation": [
-          "What specific legal issue or question do you need help with?",
-          "Have you already taken any steps to address this issue?",
-          "What outcome are you hoping to achieve?",
-          "Do you have any relevant documents or evidence related to your situation?"
+          "Thanks for reaching out! I'd love to help. Can you tell me what legal situation you're dealing with?",
+          "Have you been able to take any steps to address this yet? No worries if you're just getting started - that's what we're here for.",
+          "What would a good outcome look like for you? Sometimes it helps to think about what you're hoping for.",
+          "Do you happen to have any documents or information that might be relevant? Don't worry if you don't have everything - we can work with whatever you have."
         ],
         "legal-advice": [
           "What type of legal advice are you seeking?",
@@ -52,11 +52,11 @@
       ],
       "serviceQuestions": {
         "Family Law": [
-          "What specific family law issue are you dealing with? (divorce, custody, child support, etc.)",
-          "Are there any children involved in this situation?",
-          "Have you already filed any legal documents or court papers?",
-          "What is your current living situation and relationship status?",
-          "Do you have any existing court orders or agreements?"
+          "Thanks for reaching out. I know family situations can be really difficult. Can you tell me what type of family issue you're going through? (For example, divorce, custody, child support...)",
+          "Are there any children involved? No worries if this is complicated to explain - just let me know what you're comfortable sharing.",
+          "Have you and your spouse or partner made any formal agreements yet, or received any court orders? It's okay if you haven't - we're just trying to understand where things stand.",
+          "Can you tell me a bit about your current living situation? I know this might be in flux right now.",
+          "Do you currently have any court orders or formal agreements in place? Again, no judgment if things are still being worked out."
         ],
         "Small Business and Nonprofits": [
           "What type of business entity are you operating or planning to start?",
@@ -66,11 +66,11 @@
           "Do you have any existing business documents or agreements?"
         ],
         "Employment Law": [
-          "What type of employment issue are you experiencing? (discrimination, harassment, wage issues, etc.)",
-          "Are you currently employed, recently terminated, or applying for jobs?",
-          "Have you reported this issue to your employer or any government agencies?",
-          "What evidence or documentation do you have related to this situation?",
-          "How long have you been dealing with this employment issue?"
+          "I'm sorry you're dealing with workplace issues - that can be really stressful. Can you tell me what's been happening at work? (For example, discrimination, harassment, wage problems...)",
+          "Are you currently working there, or have you recently left or been let go? No judgment either way - just trying to understand your situation.",
+          "Have you been able to talk to anyone at your company about this, like HR or a manager? Or have you reached out to any agencies? It's totally fine if you haven't yet.",
+          "Do you have any documentation about what happened - emails, texts, photos, anything like that? Even small details can be helpful.",
+          "How long has this been going on? I know these situations can build up over time."
         ],
         "Tenant Rights Law": [
           "What specific tenant rights issue are you facing? (eviction, repairs, security deposit, etc.)",
