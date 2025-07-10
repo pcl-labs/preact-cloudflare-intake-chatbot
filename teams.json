@@ -31,7 +31,22 @@
       "brandColor": "#2563eb",
       "accentColor": "#3b82f6",
       "introMessage": "Hello! I'm your AI legal assistant. I'm here to help you get started with your legal questions and can assist with general consultation and legal advice. How can I help you today?",
-      "profileImage": "/team-profile-demo.png"
+      "profileImage": "/team-profile-demo.png",
+      "webhooks": {
+        "enabled": true,
+        "url": "https://webhook.site/1b8e8c8e-2aa5-480d-8bb1-0ebe3ae40503",
+        "secret": "demo-webhook-secret-2025",
+        "events": {
+          "matterCreation": true,
+          "matterDetails": true,
+          "contactForm": true,
+          "appointment": true
+        },
+        "retryConfig": {
+          "maxRetries": 3,
+          "retryDelay": 60
+        }
+      }
     }
   },
   {
@@ -100,7 +115,22 @@
       "brandColor": "#059669",
       "accentColor": "#10b981",
       "introMessage": "Welcome to North Carolina Legal Services! I'm here to help you with affordable legal assistance in areas including Family Law, Small Business, Employment, Tenant Rights, Probate, and Special Education. I can answer your questions and help you schedule a consultation with our experienced attorneys. How can I assist you today?",
-      "profileImage": null
+      "profileImage": null,
+      "webhooks": {
+        "enabled": true,
+        "url": "https://webhook.site/north-carolina-legal-services-webhook",
+        "secret": "ncls-webhook-secret-2025",
+        "events": {
+          "matterCreation": true,
+          "matterDetails": true,
+          "contactForm": true,
+          "appointment": true
+        },
+        "retryConfig": {
+          "maxRetries": 3,
+          "retryDelay": 60
+        }
+      }
     }
   }
 ] 
