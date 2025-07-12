@@ -57,47 +57,23 @@ interface TeamConfig {
   };
 }
 
-// Security and abuse prevention interfaces
-interface RateLimitInfo {
-  count: number;
-  resetTime: number;
-  blocked: boolean;
-  blockExpiry?: number;
-}
 
-interface SecurityValidation {
-  isValid: boolean;
-  reason?: string;
-  riskLevel: 'low' | 'medium' | 'high';
-  abuseScore: number;
-}
 
-// Security configuration
-const SECURITY_CONFIG = {
-  // Rate limiting
-  RATE_LIMIT_WINDOW: 60, // 1 minute
-  MAX_REQUESTS_PER_MINUTE: 10,
-  MAX_REQUESTS_PER_HOUR: 100,
-  BLOCK_DURATION: 3600, // 1 hour for repeated abuse
+// Simple rate limiting configuration (Facebook-style)
+const RATE_LIMIT_CONFIG = {
+  // Rapid message prevention
+  MAX_MESSAGES_PER_MINUTE: 5, // Allow 5 messages per minute
+  MAX_MESSAGES_PER_5_MINUTES: 15, // Allow 15 messages per 5 minutes
+  MIN_TIME_BETWEEN_MESSAGES: 2000, // 2 seconds minimum between messages
   
-  // Input validation
-  MIN_ANSWER_LENGTH: 10,
-  MAX_ANSWER_LENGTH: 2000,
-  MIN_MEANINGFUL_WORDS: 3,
-  MAX_REPEATED_CHARS: 3,
+  // Progressive delays for violations
+  FIRST_VIOLATION_DELAY: 5000, // 5 seconds
+  SECOND_VIOLATION_DELAY: 15000, // 15 seconds
+  THIRD_VIOLATION_DELAY: 60000, // 1 minute
   
-  // Abuse detection
-  ABUSE_THRESHOLD: 0.7, // 70% abuse score triggers rejection
-  REPEATED_PATTERNS: ['asdf', 'qwer', 'zxcv', '1234', 'test', 'spam'],
-  GIBBERISH_PATTERNS: /^[a-z]{1,3}$|^[0-9]{1,3}$|^[a-z0-9]{1,3}$/i,
-  
-  // Quality thresholds
-  MIN_QUALITY_SCORE: 30,
-  MIN_MEANINGFUL_ANSWERS: 2,
-  
-  // Session limits
-  MAX_SESSIONS_PER_IP: 5,
-  SESSION_TIMEOUT: 24 * 60 * 60, // 24 hours
+  // Simple content validation
+  MIN_MESSAGE_LENGTH: 3, // Minimum 3 characters
+  MAX_MESSAGE_LENGTH: 1000, // Maximum 1000 characters
 };
 
 // Optimized helper functions
@@ -116,77 +92,90 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-// Rate limiting service
+// Simple rate limiting service (Facebook-style)
 class RateLimitService {
   constructor(private env: Env) {}
 
-  private getRateLimitKey(identifier: string, window: string): string {
-    return `rate_limit:${identifier}:${window}`;
+  private getRateLimitKey(identifier: string): string {
+    return `rate_limit:${identifier}`;
   }
 
-  async checkRateLimit(identifier: string): Promise<RateLimitInfo> {
+  async checkRateLimit(identifier: string): Promise<{ allowed: boolean; delay?: number; message?: string }> {
     const now = Date.now();
-    const minuteKey = this.getRateLimitKey(identifier, 'minute');
-    const hourKey = this.getRateLimitKey(identifier, 'hour');
+    const key = this.getRateLimitKey(identifier);
     
     try {
-      // Check minute rate limit
-      const minuteData = await this.env.CHAT_SESSIONS.get(minuteKey);
-      const minuteInfo: RateLimitInfo = minuteData ? JSON.parse(minuteData) : { count: 0, resetTime: now + 60000, blocked: false };
-      
-      // Check hour rate limit
-      const hourData = await this.env.CHAT_SESSIONS.get(hourKey);
-      const hourInfo: RateLimitInfo = hourData ? JSON.parse(hourData) : { count: 0, resetTime: now + 3600000, blocked: false };
-      
-      // Reset if window expired
-      if (now > minuteInfo.resetTime) {
-        minuteInfo.count = 0;
-        minuteInfo.resetTime = now + 60000;
-        minuteInfo.blocked = false;
-      }
-      
-      if (now > hourInfo.resetTime) {
-        hourInfo.count = 0;
-        hourInfo.resetTime = now + 3600000;
-        hourInfo.blocked = false;
-      }
-      
-      // Check if blocked
-      if (minuteInfo.blocked && minuteInfo.blockExpiry && now < minuteInfo.blockExpiry) {
-        return minuteInfo;
-      }
-      
-      // Check limits
-      const minuteExceeded = minuteInfo.count >= SECURITY_CONFIG.MAX_REQUESTS_PER_MINUTE;
-      const hourExceeded = hourInfo.count >= SECURITY_CONFIG.MAX_REQUESTS_PER_HOUR;
-      
-      if (minuteExceeded || hourExceeded) {
-        const blockExpiry = now + SECURITY_CONFIG.BLOCK_DURATION * 1000;
-        minuteInfo.blocked = true;
-        minuteInfo.blockExpiry = blockExpiry;
-        hourInfo.blocked = true;
-        hourInfo.blockExpiry = blockExpiry;
+      // Get current rate limit data
+      const data = await this.env.CHAT_SESSIONS.get(key);
+      const rateData = data ? JSON.parse(data) : {
+        messages: [],
+        violations: 0,
+        lastViolation: 0
+      };
+
+      // Clean old messages (older than 5 minutes)
+      rateData.messages = rateData.messages.filter((timestamp: number) => now - timestamp < 5 * 60 * 1000);
+
+      // Check if we're in a violation delay period
+      if (rateData.lastViolation > 0) {
+        const timeSinceViolation = now - rateData.lastViolation;
+        let requiredDelay = 0;
         
-        // Store blocked state
-        await this.env.CHAT_SESSIONS.put(minuteKey, JSON.stringify(minuteInfo), { expirationTtl: SECURITY_CONFIG.BLOCK_DURATION });
-        await this.env.CHAT_SESSIONS.put(hourKey, JSON.stringify(hourInfo), { expirationTtl: SECURITY_CONFIG.BLOCK_DURATION });
-        
-        return minuteInfo;
+        if (rateData.violations === 1) {
+          requiredDelay = RATE_LIMIT_CONFIG.FIRST_VIOLATION_DELAY;
+        } else if (rateData.violations === 2) {
+          requiredDelay = RATE_LIMIT_CONFIG.SECOND_VIOLATION_DELAY;
+        } else {
+          requiredDelay = RATE_LIMIT_CONFIG.THIRD_VIOLATION_DELAY;
+        }
+
+        if (timeSinceViolation < requiredDelay) {
+          const remainingDelay = requiredDelay - timeSinceViolation;
+          return {
+            allowed: false,
+            delay: remainingDelay,
+            message: `You're sending messages too quickly. Please wait ${Math.ceil(remainingDelay / 1000)} seconds.`
+          };
+        }
       }
-      
-      // Increment counters
-      minuteInfo.count++;
-      hourInfo.count++;
-      
-      // Store updated state
-      await this.env.CHAT_SESSIONS.put(minuteKey, JSON.stringify(minuteInfo), { expirationTtl: 60 });
-      await this.env.CHAT_SESSIONS.put(hourKey, JSON.stringify(hourInfo), { expirationTtl: 3600 });
-      
-      return minuteInfo;
+
+      // Check message frequency limits
+      const messagesInLastMinute = rateData.messages.filter((timestamp: number) => now - timestamp < 60 * 1000).length;
+      const messagesInLast5Minutes = rateData.messages.length;
+
+      if (messagesInLastMinute >= RATE_LIMIT_CONFIG.MAX_MESSAGES_PER_MINUTE || 
+          messagesInLast5Minutes >= RATE_LIMIT_CONFIG.MAX_MESSAGES_PER_5_MINUTES) {
+        
+        // Increment violation count
+        rateData.violations = Math.min(rateData.violations + 1, 3);
+        rateData.lastViolation = now;
+
+        // Store updated data
+        await this.env.CHAT_SESSIONS.put(key, JSON.stringify(rateData), { expirationTtl: 300 }); // 5 minutes
+
+        const delay = rateData.violations === 1 ? RATE_LIMIT_CONFIG.FIRST_VIOLATION_DELAY :
+                     rateData.violations === 2 ? RATE_LIMIT_CONFIG.SECOND_VIOLATION_DELAY :
+                     RATE_LIMIT_CONFIG.THIRD_VIOLATION_DELAY;
+
+        return {
+          allowed: false,
+          delay,
+          message: `You're sending messages too quickly. Please wait ${Math.ceil(delay / 1000)} seconds.`
+        };
+      }
+
+      // Add current message timestamp
+      rateData.messages.push(now);
+
+      // Store updated data
+      await this.env.CHAT_SESSIONS.put(key, JSON.stringify(rateData), { expirationTtl: 300 }); // 5 minutes
+
+      return { allowed: true };
+
     } catch (error) {
       console.warn('Rate limit check failed:', error);
       // Fail open - allow request if rate limiting fails
-      return { count: 0, resetTime: now + 60000, blocked: false };
+      return { allowed: true };
     }
   }
 
@@ -207,108 +196,44 @@ class RateLimitService {
   }
 }
 
-// Input validation and abuse detection service
+// Simple input validation service
 class SecurityService {
   constructor(private env: Env) {}
 
-  validateInput(content: string): SecurityValidation {
-    const validation: SecurityValidation = {
-      isValid: true,
-      riskLevel: 'low',
-      abuseScore: 0
-    };
-
+  validateInput(content: string): { isValid: boolean; message?: string } {
     if (!content || typeof content !== 'string') {
-      validation.isValid = false;
-      validation.reason = 'Invalid input type';
-      validation.riskLevel = 'high';
-      validation.abuseScore = 1.0;
-      return validation;
+      return { isValid: false, message: 'Invalid input type' };
     }
 
     const trimmed = content.trim();
     
-    // Check for empty or very short content
+    // Check for empty content
     if (trimmed.length === 0) {
-      validation.isValid = false;
-      validation.reason = 'Empty input';
-      validation.riskLevel = 'high';
-      validation.abuseScore = 0.9;
-      return validation;
+      return { isValid: false, message: 'Message cannot be empty' };
     }
 
-    if (trimmed.length < SECURITY_CONFIG.MIN_ANSWER_LENGTH) {
-      validation.abuseScore += 0.3;
-      validation.riskLevel = 'medium';
+    // Check minimum length
+    if (trimmed.length < RATE_LIMIT_CONFIG.MIN_MESSAGE_LENGTH) {
+      return { isValid: false, message: 'Message is too short' };
     }
 
-    // Check for repeated characters (e.g., "aaaa", "ssss")
-    const repeatedChars = /(.)\1{2,}/g;
-    if (repeatedChars.test(trimmed)) {
-      validation.abuseScore += 0.4;
-      validation.riskLevel = 'high';
+    // Check maximum length
+    if (trimmed.length > RATE_LIMIT_CONFIG.MAX_MESSAGE_LENGTH) {
+      return { isValid: false, message: 'Message is too long' };
     }
 
-    // Check for known abuse patterns
-    const lowerContent = trimmed.toLowerCase();
-    for (const pattern of SECURITY_CONFIG.REPEATED_PATTERNS) {
-      if (lowerContent.includes(pattern)) {
-        validation.abuseScore += 0.5;
-        validation.riskLevel = 'high';
-      }
-    }
-
-    // Check for gibberish patterns
-    if (SECURITY_CONFIG.GIBBERISH_PATTERNS.test(trimmed)) {
-      validation.abuseScore += 0.6;
-      validation.riskLevel = 'high';
-    }
-
-    // Check for excessive length
-    if (trimmed.length > SECURITY_CONFIG.MAX_ANSWER_LENGTH) {
-      validation.abuseScore += 0.2;
-      validation.riskLevel = 'medium';
-    }
-
-    // Check for meaningful word count
-    const words = trimmed.split(/\s+/).filter(word => word.length > 2);
-    if (words.length < SECURITY_CONFIG.MIN_MEANINGFUL_WORDS) {
-      validation.abuseScore += 0.3;
-      validation.riskLevel = 'medium';
-    }
-
-    // Determine if input should be rejected
-    if (validation.abuseScore >= SECURITY_CONFIG.ABUSE_THRESHOLD) {
-      validation.isValid = false;
-      validation.reason = 'Input appears to be abusive or low-quality';
-    }
-
-    return validation;
+    return { isValid: true };
   }
 
-  validateMatterCreationRequest(body: MatterCreationRequest): SecurityValidation {
-    const validation: SecurityValidation = {
-      isValid: true,
-      riskLevel: 'low',
-      abuseScore: 0
-    };
-
+  validateMatterCreationRequest(body: MatterCreationRequest): { isValid: boolean; message?: string } {
     // Validate required fields
     if (!body.teamId || !body.step) {
-      validation.isValid = false;
-      validation.reason = 'Missing required fields';
-      validation.riskLevel = 'high';
-      validation.abuseScore = 1.0;
-      return validation;
+      return { isValid: false, message: 'Missing required fields' };
     }
 
     // Validate team ID format
     if (typeof body.teamId !== 'string' || body.teamId.length < 3 || body.teamId.length > 50) {
-      validation.isValid = false;
-      validation.reason = 'Invalid team ID format';
-      validation.riskLevel = 'high';
-      validation.abuseScore = 0.8;
-      return validation;
+      return { isValid: false, message: 'Invalid team ID format' };
     }
 
     // Validate answers if present
@@ -318,12 +243,7 @@ class SecurityService {
         const answerValidation = this.validateInput(answer);
         
         if (!answerValidation.isValid) {
-          validation.isValid = false;
-          validation.reason = `Invalid answer in field ${key}: ${answerValidation.reason}`;
-          validation.riskLevel = answerValidation.riskLevel;
-          validation.abuseScore = Math.max(validation.abuseScore, answerValidation.abuseScore);
-        } else {
-          validation.abuseScore = Math.max(validation.abuseScore, answerValidation.abuseScore * 0.5);
+          return { isValid: false, message: `Invalid answer in field ${key}: ${answerValidation.message}` };
         }
       }
     }
@@ -332,35 +252,11 @@ class SecurityService {
     if (body.description) {
       const descValidation = this.validateInput(body.description);
       if (!descValidation.isValid) {
-        validation.isValid = false;
-        validation.reason = `Invalid description: ${descValidation.reason}`;
-        validation.riskLevel = descValidation.riskLevel;
-        validation.abuseScore = Math.max(validation.abuseScore, descValidation.abuseScore);
+        return { isValid: false, message: `Invalid description: ${descValidation.message}` };
       }
     }
 
-    return validation;
-  }
-
-  async logAbuseAttempt(identifier: string, reason: string, abuseScore: number): Promise<void> {
-    try {
-      const abuseLog = {
-        identifier,
-        reason,
-        abuseScore,
-        timestamp: new Date().toISOString(),
-        userAgent: 'unknown', // Could extract from request headers
-        ip: identifier.split(':')[0]
-      };
-
-      await this.env.CHAT_SESSIONS.put(
-        `abuse_log:${identifier}:${Date.now()}`,
-        JSON.stringify(abuseLog),
-        { expirationTtl: 24 * 60 * 60 } // Keep for 24 hours
-      );
-    } catch (error) {
-      console.warn('Failed to log abuse attempt:', error);
-    }
+    return { isValid: true };
   }
 }
 
@@ -933,20 +829,19 @@ async function handleChat(request: Request, env: Env, corsHeaders: Record<string
   try {
     // Rate limiting check
     const identifier = await rateLimitService.getIdentifier(request);
-    const rateLimitInfo = await rateLimitService.checkRateLimit(identifier);
+    const rateLimitResult = await rateLimitService.checkRateLimit(identifier);
     
-    if (rateLimitInfo.blocked) {
-      const remainingTime = Math.ceil((rateLimitInfo.blockExpiry! - Date.now()) / 1000);
+    if (!rateLimitResult.allowed) {
       return new Response(JSON.stringify({ 
         error: 'Rate limit exceeded',
-        message: `Too many requests. Please try again in ${remainingTime} seconds.`,
-        retryAfter: remainingTime
+        message: rateLimitResult.message || 'You\'re sending messages too quickly. Please wait a moment.',
+        retryAfter: Math.ceil((rateLimitResult.delay || 5000) / 1000)
       }), {
         status: 429,
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json',
-          'Retry-After': remainingTime.toString()
+          'Retry-After': Math.ceil((rateLimitResult.delay || 5000) / 1000).toString()
         }
       });
     }
@@ -960,18 +855,14 @@ async function handleChat(request: Request, env: Env, corsHeaders: Record<string
       });
     }
 
-    // Validate the last user message for abuse
+    // Simple input validation
     const lastUserMessage = body.messages[body.messages.length - 1];
     if (lastUserMessage && lastUserMessage.role === 'user') {
       const messageValidation = securityService.validateInput(lastUserMessage.content);
       if (!messageValidation.isValid) {
-        // Log abuse attempt
-        await securityService.logAbuseAttempt(identifier, messageValidation.reason!, messageValidation.abuseScore);
-        
         return new Response(JSON.stringify({ 
           error: 'Invalid message',
-          message: 'Your message appears to be invalid or abusive. Please provide a meaningful message.',
-          abuseScore: messageValidation.abuseScore
+          message: messageValidation.message || 'Your message is invalid. Please provide a valid message.'
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1060,62 +951,35 @@ async function handleMatterCreation(request: Request, env: Env, corsHeaders: Rec
   try {
     // Rate limiting check
     const identifier = await rateLimitService.getIdentifier(request);
-    const rateLimitInfo = await rateLimitService.checkRateLimit(identifier);
+    const rateLimitResult = await rateLimitService.checkRateLimit(identifier);
     
-    if (rateLimitInfo.blocked) {
-      const remainingTime = Math.ceil((rateLimitInfo.blockExpiry! - Date.now()) / 1000);
+    if (!rateLimitResult.allowed) {
       return new Response(JSON.stringify({ 
         error: 'Rate limit exceeded',
-        message: `Too many requests. Please try again in ${remainingTime} seconds.`,
-        retryAfter: remainingTime
+        message: rateLimitResult.message || 'You\'re sending messages too quickly. Please wait a moment.',
+        retryAfter: Math.ceil((rateLimitResult.delay || 5000) / 1000)
       }), {
         status: 429,
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json',
-          'Retry-After': remainingTime.toString()
+          'Retry-After': Math.ceil((rateLimitResult.delay || 5000) / 1000).toString()
         }
       });
     }
 
     const body = await parseJsonBody(request) as MatterCreationRequest;
     
-    // Security validation
+    // Simple input validation
     const securityValidation = securityService.validateMatterCreationRequest(body);
     if (!securityValidation.isValid) {
-      // Log abuse attempt
-      await securityService.logAbuseAttempt(identifier, securityValidation.reason!, securityValidation.abuseScore);
-      
       return new Response(JSON.stringify({ 
         error: 'Invalid input',
-        message: securityValidation.reason || 'Your input appears to be invalid or abusive. Please provide meaningful responses.',
-        abuseScore: securityValidation.abuseScore
+        message: securityValidation.message || 'Your input is invalid. Please provide valid responses.'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
-    }
-
-    // Early quality check for answers to prevent processing low-quality inputs
-    if (body.answers && Object.keys(body.answers).length > 0) {
-      const quality = assessMatterQuality(body);
-      
-      // Reject if quality is too low and we have multiple answers
-      if (quality.score < SECURITY_CONFIG.MIN_QUALITY_SCORE && 
-          Object.keys(body.answers).length >= SECURITY_CONFIG.MIN_MEANINGFUL_ANSWERS) {
-        
-        await securityService.logAbuseAttempt(identifier, 'Low quality answers detected', quality.score / 100);
-        
-        return new Response(JSON.stringify({
-          error: 'Insufficient information',
-          message: 'Your answers are too brief or unclear. Please provide more detailed responses to help us understand your legal situation.',
-          qualityScore: quality.score,
-          suggestions: quality.suggestions.slice(0, 3) // Limit suggestions
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
     }
 
     // Get team config using cached service
