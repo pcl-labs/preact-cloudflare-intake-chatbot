@@ -57,6 +57,49 @@ interface TeamConfig {
   };
 }
 
+// Security and abuse prevention interfaces
+interface RateLimitInfo {
+  count: number;
+  resetTime: number;
+  blocked: boolean;
+  blockExpiry?: number;
+}
+
+interface SecurityValidation {
+  isValid: boolean;
+  reason?: string;
+  riskLevel: 'low' | 'medium' | 'high';
+  abuseScore: number;
+}
+
+// Security configuration
+const SECURITY_CONFIG = {
+  // Rate limiting
+  RATE_LIMIT_WINDOW: 60, // 1 minute
+  MAX_REQUESTS_PER_MINUTE: 10,
+  MAX_REQUESTS_PER_HOUR: 100,
+  BLOCK_DURATION: 3600, // 1 hour for repeated abuse
+  
+  // Input validation
+  MIN_ANSWER_LENGTH: 10,
+  MAX_ANSWER_LENGTH: 2000,
+  MIN_MEANINGFUL_WORDS: 3,
+  MAX_REPEATED_CHARS: 3,
+  
+  // Abuse detection
+  ABUSE_THRESHOLD: 0.7, // 70% abuse score triggers rejection
+  REPEATED_PATTERNS: ['asdf', 'qwer', 'zxcv', '1234', 'test', 'spam'],
+  GIBBERISH_PATTERNS: /^[a-z]{1,3}$|^[0-9]{1,3}$|^[a-z0-9]{1,3}$/i,
+  
+  // Quality thresholds
+  MIN_QUALITY_SCORE: 30,
+  MIN_MEANINGFUL_ANSWERS: 2,
+  
+  // Session limits
+  MAX_SESSIONS_PER_IP: 5,
+  SESSION_TIMEOUT: 24 * 60 * 60, // 24 hours
+};
+
 // Optimized helper functions
 async function parseJsonBody(request: Request) {
   try {
@@ -72,6 +115,254 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
+
+// Rate limiting service
+class RateLimitService {
+  constructor(private env: Env) {}
+
+  private getRateLimitKey(identifier: string, window: string): string {
+    return `rate_limit:${identifier}:${window}`;
+  }
+
+  async checkRateLimit(identifier: string): Promise<RateLimitInfo> {
+    const now = Date.now();
+    const minuteKey = this.getRateLimitKey(identifier, 'minute');
+    const hourKey = this.getRateLimitKey(identifier, 'hour');
+    
+    try {
+      // Check minute rate limit
+      const minuteData = await this.env.CHAT_SESSIONS.get(minuteKey);
+      const minuteInfo: RateLimitInfo = minuteData ? JSON.parse(minuteData) : { count: 0, resetTime: now + 60000, blocked: false };
+      
+      // Check hour rate limit
+      const hourData = await this.env.CHAT_SESSIONS.get(hourKey);
+      const hourInfo: RateLimitInfo = hourData ? JSON.parse(hourData) : { count: 0, resetTime: now + 3600000, blocked: false };
+      
+      // Reset if window expired
+      if (now > minuteInfo.resetTime) {
+        minuteInfo.count = 0;
+        minuteInfo.resetTime = now + 60000;
+        minuteInfo.blocked = false;
+      }
+      
+      if (now > hourInfo.resetTime) {
+        hourInfo.count = 0;
+        hourInfo.resetTime = now + 3600000;
+        hourInfo.blocked = false;
+      }
+      
+      // Check if blocked
+      if (minuteInfo.blocked && minuteInfo.blockExpiry && now < minuteInfo.blockExpiry) {
+        return minuteInfo;
+      }
+      
+      // Check limits
+      const minuteExceeded = minuteInfo.count >= SECURITY_CONFIG.MAX_REQUESTS_PER_MINUTE;
+      const hourExceeded = hourInfo.count >= SECURITY_CONFIG.MAX_REQUESTS_PER_HOUR;
+      
+      if (minuteExceeded || hourExceeded) {
+        const blockExpiry = now + SECURITY_CONFIG.BLOCK_DURATION * 1000;
+        minuteInfo.blocked = true;
+        minuteInfo.blockExpiry = blockExpiry;
+        hourInfo.blocked = true;
+        hourInfo.blockExpiry = blockExpiry;
+        
+        // Store blocked state
+        await this.env.CHAT_SESSIONS.put(minuteKey, JSON.stringify(minuteInfo), { expirationTtl: SECURITY_CONFIG.BLOCK_DURATION });
+        await this.env.CHAT_SESSIONS.put(hourKey, JSON.stringify(hourInfo), { expirationTtl: SECURITY_CONFIG.BLOCK_DURATION });
+        
+        return minuteInfo;
+      }
+      
+      // Increment counters
+      minuteInfo.count++;
+      hourInfo.count++;
+      
+      // Store updated state
+      await this.env.CHAT_SESSIONS.put(minuteKey, JSON.stringify(minuteInfo), { expirationTtl: 60 });
+      await this.env.CHAT_SESSIONS.put(hourKey, JSON.stringify(hourInfo), { expirationTtl: 3600 });
+      
+      return minuteInfo;
+    } catch (error) {
+      console.warn('Rate limit check failed:', error);
+      // Fail open - allow request if rate limiting fails
+      return { count: 0, resetTime: now + 60000, blocked: false };
+    }
+  }
+
+  async getIdentifier(request: Request): Promise<string> {
+    // Try to get IP from CF-Connecting-IP header (Cloudflare)
+    const ip = request.headers.get('CF-Connecting-IP') || 
+               request.headers.get('X-Forwarded-For')?.split(',')[0] || 
+               'unknown';
+    
+    // Also consider session ID if available
+    try {
+      const body = await request.clone().json();
+      const sessionId = body.sessionId;
+      return sessionId ? `${ip}:${sessionId}` : ip;
+    } catch {
+      return ip;
+    }
+  }
+}
+
+// Input validation and abuse detection service
+class SecurityService {
+  constructor(private env: Env) {}
+
+  validateInput(content: string): SecurityValidation {
+    const validation: SecurityValidation = {
+      isValid: true,
+      riskLevel: 'low',
+      abuseScore: 0
+    };
+
+    if (!content || typeof content !== 'string') {
+      validation.isValid = false;
+      validation.reason = 'Invalid input type';
+      validation.riskLevel = 'high';
+      validation.abuseScore = 1.0;
+      return validation;
+    }
+
+    const trimmed = content.trim();
+    
+    // Check for empty or very short content
+    if (trimmed.length === 0) {
+      validation.isValid = false;
+      validation.reason = 'Empty input';
+      validation.riskLevel = 'high';
+      validation.abuseScore = 0.9;
+      return validation;
+    }
+
+    if (trimmed.length < SECURITY_CONFIG.MIN_ANSWER_LENGTH) {
+      validation.abuseScore += 0.3;
+      validation.riskLevel = 'medium';
+    }
+
+    // Check for repeated characters (e.g., "aaaa", "ssss")
+    const repeatedChars = /(.)\1{2,}/g;
+    if (repeatedChars.test(trimmed)) {
+      validation.abuseScore += 0.4;
+      validation.riskLevel = 'high';
+    }
+
+    // Check for known abuse patterns
+    const lowerContent = trimmed.toLowerCase();
+    for (const pattern of SECURITY_CONFIG.REPEATED_PATTERNS) {
+      if (lowerContent.includes(pattern)) {
+        validation.abuseScore += 0.5;
+        validation.riskLevel = 'high';
+      }
+    }
+
+    // Check for gibberish patterns
+    if (SECURITY_CONFIG.GIBBERISH_PATTERNS.test(trimmed)) {
+      validation.abuseScore += 0.6;
+      validation.riskLevel = 'high';
+    }
+
+    // Check for excessive length
+    if (trimmed.length > SECURITY_CONFIG.MAX_ANSWER_LENGTH) {
+      validation.abuseScore += 0.2;
+      validation.riskLevel = 'medium';
+    }
+
+    // Check for meaningful word count
+    const words = trimmed.split(/\s+/).filter(word => word.length > 2);
+    if (words.length < SECURITY_CONFIG.MIN_MEANINGFUL_WORDS) {
+      validation.abuseScore += 0.3;
+      validation.riskLevel = 'medium';
+    }
+
+    // Determine if input should be rejected
+    if (validation.abuseScore >= SECURITY_CONFIG.ABUSE_THRESHOLD) {
+      validation.isValid = false;
+      validation.reason = 'Input appears to be abusive or low-quality';
+    }
+
+    return validation;
+  }
+
+  validateMatterCreationRequest(body: MatterCreationRequest): SecurityValidation {
+    const validation: SecurityValidation = {
+      isValid: true,
+      riskLevel: 'low',
+      abuseScore: 0
+    };
+
+    // Validate required fields
+    if (!body.teamId || !body.step) {
+      validation.isValid = false;
+      validation.reason = 'Missing required fields';
+      validation.riskLevel = 'high';
+      validation.abuseScore = 1.0;
+      return validation;
+    }
+
+    // Validate team ID format
+    if (typeof body.teamId !== 'string' || body.teamId.length < 3 || body.teamId.length > 50) {
+      validation.isValid = false;
+      validation.reason = 'Invalid team ID format';
+      validation.riskLevel = 'high';
+      validation.abuseScore = 0.8;
+      return validation;
+    }
+
+    // Validate answers if present
+    if (body.answers) {
+      for (const [key, value] of Object.entries(body.answers)) {
+        const answer = typeof value === 'string' ? value : (value as any)?.answer || '';
+        const answerValidation = this.validateInput(answer);
+        
+        if (!answerValidation.isValid) {
+          validation.isValid = false;
+          validation.reason = `Invalid answer in field ${key}: ${answerValidation.reason}`;
+          validation.riskLevel = answerValidation.riskLevel;
+          validation.abuseScore = Math.max(validation.abuseScore, answerValidation.abuseScore);
+        } else {
+          validation.abuseScore = Math.max(validation.abuseScore, answerValidation.abuseScore * 0.5);
+        }
+      }
+    }
+
+    // Validate description if present
+    if (body.description) {
+      const descValidation = this.validateInput(body.description);
+      if (!descValidation.isValid) {
+        validation.isValid = false;
+        validation.reason = `Invalid description: ${descValidation.reason}`;
+        validation.riskLevel = descValidation.riskLevel;
+        validation.abuseScore = Math.max(validation.abuseScore, descValidation.abuseScore);
+      }
+    }
+
+    return validation;
+  }
+
+  async logAbuseAttempt(identifier: string, reason: string, abuseScore: number): Promise<void> {
+    try {
+      const abuseLog = {
+        identifier,
+        reason,
+        abuseScore,
+        timestamp: new Date().toISOString(),
+        userAgent: 'unknown', // Could extract from request headers
+        ip: identifier.split(':')[0]
+      };
+
+      await this.env.CHAT_SESSIONS.put(
+        `abuse_log:${identifier}:${Date.now()}`,
+        JSON.stringify(abuseLog),
+        { expirationTtl: 24 * 60 * 60 } // Keep for 24 hours
+      );
+    } catch (error) {
+      console.warn('Failed to log abuse attempt:', error);
+    }
+  }
+}
 
 // Optimized AI Service with caching and timeouts
 class AIService {
@@ -365,27 +656,47 @@ function assessMatterQuality(matterData: any): QualityAssessment {
     confidence: 'low'
   };
 
-  // 1. Analyze answer quality and length
+  // 1. Analyze answer quality and length with stricter criteria
   let totalAnswerLength = 0;
   let meaningfulAnswers = 0;
   let totalAnswers = answerEntries.length;
+  let lowQualityAnswers = 0;
   
   for (const [key, value] of answerEntries) {
     const answer = typeof value === 'string' ? value : (value as any)?.answer || '';
     const question = typeof value === 'string' ? key : (value as any)?.question || key;
     
-    // Check if answer is meaningful (not just 1-3 characters)
-    if (answer.length >= 10) {
+    // Stricter meaningful answer check
+    const trimmedAnswer = answer.trim();
+    const words = trimmedAnswer.split(/\s+/).filter(word => word.length > 2);
+    const isMeaningful = trimmedAnswer.length >= SECURITY_CONFIG.MIN_ANSWER_LENGTH && 
+                        words.length >= SECURITY_CONFIG.MIN_MEANINGFUL_WORDS &&
+                        !/(.)\1{2,}/.test(trimmedAnswer) && // No repeated characters
+                        !SECURITY_CONFIG.GIBBERISH_PATTERNS.test(trimmedAnswer); // No gibberish
+    
+    if (isMeaningful) {
       meaningfulAnswers++;
       totalAnswerLength += answer.length;
-    } else if (answer.length <= 3) {
-      assessment.issues.push(`Answer "${answer}" is too short for question "${question}"`);
+    } else {
+      lowQualityAnswers++;
+      if (trimmedAnswer.length <= 3) {
+        assessment.issues.push(`Answer "${answer}" is too short for question "${question}"`);
+      } else if (words.length < SECURITY_CONFIG.MIN_MEANINGFUL_WORDS) {
+        assessment.issues.push(`Answer "${answer}" lacks meaningful content for question "${question}"`);
+      } else if (/(.)\1{2,}/.test(trimmedAnswer)) {
+        assessment.issues.push(`Answer "${answer}" contains repeated characters for question "${question}"`);
+      }
     }
   }
 
-  // Calculate answer quality metrics
+  // Calculate answer quality metrics with stricter scoring
   assessment.breakdown.answerQuality = totalAnswers > 0 ? (meaningfulAnswers / totalAnswers) * 100 : 0;
   assessment.breakdown.answerLength = totalAnswers > 0 ? Math.min((totalAnswerLength / totalAnswers) / 5, 100) : 0; // Normalize to 100
+  
+  // Penalize heavily for low-quality answers
+  if (lowQualityAnswers > 0) {
+    assessment.breakdown.answerQuality = Math.max(0, assessment.breakdown.answerQuality - (lowQualityAnswers * 20));
+  }
 
   // 2. Check service specificity
   if (matterData.service && matterData.service !== 'General Inquiry') {
@@ -435,13 +746,13 @@ function assessMatterQuality(matterData: any): QualityAssessment {
     (totalAnswers >= 3 ? 100 : totalAnswers * 33.33) * weights.answerCompleteness
   );
 
-  // 7. Determine if ready for lawyer
-  assessment.readyForLawyer = assessment.score >= 70 && meaningfulAnswers >= 2;
+  // 7. Determine if ready for lawyer (stricter criteria)
+  assessment.readyForLawyer = assessment.score >= 70 && meaningfulAnswers >= 2 && lowQualityAnswers === 0;
 
-  // 8. Set confidence level
-  if (assessment.score >= 80 && meaningfulAnswers >= 3) {
+  // 8. Set confidence level (stricter criteria)
+  if (assessment.score >= 80 && meaningfulAnswers >= 3 && lowQualityAnswers === 0) {
     assessment.confidence = 'high';
-  } else if (assessment.score >= 60 && meaningfulAnswers >= 2) {
+  } else if (assessment.score >= 60 && meaningfulAnswers >= 2 && lowQualityAnswers <= 1) {
     assessment.confidence = 'medium';
   } else {
     assessment.confidence = 'low';
@@ -615,7 +926,31 @@ async function handleChat(request: Request, env: Env, corsHeaders: Record<string
     });
   }
 
+  // Initialize security services
+  const rateLimitService = new RateLimitService(env);
+  const securityService = new SecurityService(env);
+
   try {
+    // Rate limiting check
+    const identifier = await rateLimitService.getIdentifier(request);
+    const rateLimitInfo = await rateLimitService.checkRateLimit(identifier);
+    
+    if (rateLimitInfo.blocked) {
+      const remainingTime = Math.ceil((rateLimitInfo.blockExpiry! - Date.now()) / 1000);
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded',
+        message: `Too many requests. Please try again in ${remainingTime} seconds.`,
+        retryAfter: remainingTime
+      }), {
+        status: 429,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Retry-After': remainingTime.toString()
+        }
+      });
+    }
+
     const body = await parseJsonBody(request) as ChatRequest;
     
     if (!body.messages?.length) {
@@ -623,6 +958,25 @@ async function handleChat(request: Request, env: Env, corsHeaders: Record<string
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
+    }
+
+    // Validate the last user message for abuse
+    const lastUserMessage = body.messages[body.messages.length - 1];
+    if (lastUserMessage && lastUserMessage.role === 'user') {
+      const messageValidation = securityService.validateInput(lastUserMessage.content);
+      if (!messageValidation.isValid) {
+        // Log abuse attempt
+        await securityService.logAbuseAttempt(identifier, messageValidation.reason!, messageValidation.abuseScore);
+        
+        return new Response(JSON.stringify({ 
+          error: 'Invalid message',
+          message: 'Your message appears to be invalid or abusive. Please provide a meaningful message.',
+          abuseScore: messageValidation.abuseScore
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // Get team config using cached service
@@ -699,14 +1053,69 @@ async function handleMatterCreation(request: Request, env: Env, corsHeaders: Rec
     });
   }
 
+  // Initialize security services
+  const rateLimitService = new RateLimitService(env);
+  const securityService = new SecurityService(env);
+
   try {
+    // Rate limiting check
+    const identifier = await rateLimitService.getIdentifier(request);
+    const rateLimitInfo = await rateLimitService.checkRateLimit(identifier);
+    
+    if (rateLimitInfo.blocked) {
+      const remainingTime = Math.ceil((rateLimitInfo.blockExpiry! - Date.now()) / 1000);
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded',
+        message: `Too many requests. Please try again in ${remainingTime} seconds.`,
+        retryAfter: remainingTime
+      }), {
+        status: 429,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Retry-After': remainingTime.toString()
+        }
+      });
+    }
+
     const body = await parseJsonBody(request) as MatterCreationRequest;
     
-    if (!body.teamId || !body.step) {
-      return new Response(JSON.stringify({ error: 'Missing teamId or step' }), {
+    // Security validation
+    const securityValidation = securityService.validateMatterCreationRequest(body);
+    if (!securityValidation.isValid) {
+      // Log abuse attempt
+      await securityService.logAbuseAttempt(identifier, securityValidation.reason!, securityValidation.abuseScore);
+      
+      return new Response(JSON.stringify({ 
+        error: 'Invalid input',
+        message: securityValidation.reason || 'Your input appears to be invalid or abusive. Please provide meaningful responses.',
+        abuseScore: securityValidation.abuseScore
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
+    }
+
+    // Early quality check for answers to prevent processing low-quality inputs
+    if (body.answers && Object.keys(body.answers).length > 0) {
+      const quality = assessMatterQuality(body);
+      
+      // Reject if quality is too low and we have multiple answers
+      if (quality.score < SECURITY_CONFIG.MIN_QUALITY_SCORE && 
+          Object.keys(body.answers).length >= SECURITY_CONFIG.MIN_MEANINGFUL_ANSWERS) {
+        
+        await securityService.logAbuseAttempt(identifier, 'Low quality answers detected', quality.score / 100);
+        
+        return new Response(JSON.stringify({
+          error: 'Insufficient information',
+          message: 'Your answers are too brief or unclear. Please provide more detailed responses to help us understand your legal situation.',
+          qualityScore: quality.score,
+          suggestions: quality.suggestions.slice(0, 3) // Limit suggestions
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // Get team config using cached service
