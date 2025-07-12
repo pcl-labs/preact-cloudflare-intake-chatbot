@@ -1,46 +1,67 @@
 [
   {
-    "id": "demo",
-    "name": "Blawby Demo",
+    "id": "blawby-ai",
+    "name": "Blawby AI",
     "config": {
       "aiModel": "llama",
       "consultationFee": 0,
       "requiresPayment": false,
       "ownerEmail": "paulchrisluke@gmail.com",
       "availableServices": [
-        "general-consultation",
-        "legal-advice"
+        "Business Law",
+        "Contract Review",
+        "Intellectual Property",
+        "Employment Law",
+        "General Consultation"
       ],
       "serviceQuestions": {
-        "general-consultation": [
-          "Thanks for reaching out! I'd love to help. Can you tell me what legal situation you're dealing with?",
-          "Have you been able to take any steps to address this yet? No worries if you're just getting started - that's what we're here for.",
-          "What would a good outcome look like for you? Sometimes it helps to think about what you're hoping for.",
-          "Do you happen to have any documents or information that might be relevant? Don't worry if you don't have everything - we can work with whatever you have."
+        "Business Law": [
+          "What type of business entity are you operating or planning to start?",
+          "What specific legal issue are you facing with your business?",
+          "Are you dealing with contracts, employment issues, or regulatory compliance?",
+          "What is the size and scope of your business operations?"
         ],
-        "legal-advice": [
-          "What type of legal advice are you seeking?",
-          "What is the timeline or urgency of your situation?",
-          "Have you consulted with any other legal professionals about this?",
-          "What specific questions do you have about your legal rights or options?"
+        "Contract Review": [
+          "What type of contract do you need reviewed?",
+          "What is the value or importance of this contract?",
+          "Are there any specific concerns or red flags you've noticed?",
+          "What is the timeline for this contract?"
+        ],
+        "Intellectual Property": [
+          "What type of intellectual property are you dealing with?",
+          "Are you looking to protect, license, or enforce IP rights?",
+          "What is the nature of your IP (patent, trademark, copyright, trade secret)?",
+          "What is the commercial value or importance of this IP?"
+        ],
+        "Employment Law": [
+          "What specific employment issue are you facing?",
+          "Are you an employer or employee in this situation?",
+          "Have you taken any steps to address this issue?",
+          "What is the timeline or urgency of your situation?"
+        ],
+        "General Consultation": [
+          "Thanks for reaching out! I'd love to help. Can you tell me what legal situation you're dealing with?",
+          "Have you been able to take any steps to address this yet?",
+          "What would a good outcome look like for you?",
+          "Do you have any documents or information that might be relevant?"
         ]
       },
-      "domain": "demo.blawby.com",
-      "description": "Demo law firm for testing purposes",
+      "domain": "ai.blawby.com",
+      "description": "AI-powered legal assistance for businesses and individuals",
       "paymentLink": null,
       "brandColor": "#2563eb",
       "accentColor": "#3b82f6",
-      "introMessage": "Hello! I'm your AI legal assistant. I'm here to help you get started with your legal questions and can assist with general consultation and legal advice. How can I help you today?",
-      "profileImage": "/team-profile-demo.png",
+      "introMessage": "Hello! I'm Blawby AI, your intelligent legal assistant. I can help you with business law, contract review, intellectual property, employment law, and general legal consultation. How can I assist you today?",
+      "profileImage": null,
       "webhooks": {
-        "enabled": true,
-        "url": "https://webhook.site/1b8e8c8e-2aa5-480d-8bb1-0ebe3ae40503",
-        "secret": "demo-webhook-secret-2025",
+        "enabled": false,
+        "url": "",
+        "secret": "",
         "events": {
-          "matterCreation": true,
-          "matterDetails": true,
-          "contactForm": true,
-          "appointment": true
+          "matterCreation": false,
+          "matterDetails": false,
+          "contactForm": false,
+          "appointment": false
         },
         "retryConfig": {
           "maxRetries": 3,
