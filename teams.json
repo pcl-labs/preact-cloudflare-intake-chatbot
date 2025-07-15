@@ -54,14 +54,14 @@
       "introMessage": "Hello! I'm Blawby AI, your intelligent legal assistant. I can help you with business law, contract review, intellectual property, employment law, and general legal consultation. How can I assist you today?",
       "profileImage": null,
       "webhooks": {
-        "enabled": false,
-        "url": "",
-        "secret": "",
+        "enabled": true,
+        "url": "https://your-laravel-app.com/api/webhooks/blawby",
+        "secret": "blawby-webhook-secret-2025",
         "events": {
-          "matterCreation": false,
-          "matterDetails": false,
-          "contactForm": false,
-          "appointment": false
+          "matterCreation": true,
+          "matterDetails": true,
+          "contactForm": true,
+          "appointment": true
         },
         "retryConfig": {
           "maxRetries": 3,
@@ -139,8 +139,8 @@
       "profileImage": null,
       "webhooks": {
         "enabled": true,
-        "url": "https://webhook.site/north-carolina-legal-services-webhook",
-        "secret": "ncls-webhook-secret-2025",
+        "url": "https://app.blawby.com/api/webhooks/blawby",
+        "secret": "967cedd7beccff1739eb70831f04b849f869a0c9d906e1ff6029825d8bd907a1",
         "events": {
           "matterCreation": true,
           "matterDetails": true,
