@@ -54,14 +54,14 @@
       "introMessage": "Hello! I'm Blawby AI, your intelligent legal assistant. I can help you with business law, contract review, intellectual property, employment law, and general legal consultation. How can I assist you today?",
       "profileImage": null,
       "webhooks": {
-        "enabled": true,
-        "url": "https://your-laravel-app.com/api/webhooks/blawby",
-        "secret": "blawby-webhook-secret-2025",
+        "enabled": false,
+        "url": "",
+        "secret": "",
         "events": {
-          "matterCreation": true,
-          "matterDetails": true,
-          "contactForm": true,
-          "appointment": true
+          "matterCreation": false,
+          "matterDetails": false,
+          "contactForm": false,
+          "appointment": false
         },
         "retryConfig": {
           "maxRetries": 3,
@@ -88,46 +88,22 @@
       ],
       "serviceQuestions": {
         "Family Law": [
-          "Thanks for reaching out. I know family situations can be really difficult. Can you tell me what type of family issue you're going through? (For example, divorce, custody, child support...)",
-          "Are there any children involved? No worries if this is complicated to explain - just let me know what you're comfortable sharing.",
-          "Have you and your spouse or partner made any formal agreements yet, or received any court orders? It's okay if you haven't - we're just trying to understand where things stand.",
-          "Can you tell me a bit about your current living situation? I know this might be in flux right now.",
-          "Do you currently have any court orders or formal agreements in place? Again, no judgment if things are still being worked out."
+          "Thanks for reaching out. I know family situations can be really difficult. Can you tell me what type of family issue you're going through? (For example, divorce, custody, child support...)"
         ],
         "Small Business and Nonprofits": [
-          "What type of business entity are you operating or planning to start?",
-          "What specific legal issue are you facing with your business?",
-          "Are you dealing with contracts, employment issues, or regulatory compliance?",
-          "What is the size and scope of your business operations?",
-          "Do you have any existing business documents or agreements?"
+          "What type of business entity are you operating or planning to start?"
         ],
         "Employment Law": [
-          "I'm sorry you're dealing with workplace issues - that can be really stressful. Can you tell me what's been happening at work? (For example, discrimination, harassment, wage problems...)",
-          "Are you currently working there, or have you recently left or been let go? No judgment either way - just trying to understand your situation.",
-          "Have you been able to talk to anyone at your company about this, like HR or a manager? Or have you reached out to any agencies? It's totally fine if you haven't yet.",
-          "Do you have any documentation about what happened - emails, texts, photos, anything like that? Even small details can be helpful.",
-          "How long has this been going on? I know these situations can build up over time."
+          "I'm sorry you're dealing with workplace issues - that can be really stressful. Can you tell me what's been happening at work? (For example, discrimination, harassment, wage problems...)"
         ],
         "Tenant Rights Law": [
-          "What specific tenant rights issue are you facing? (eviction, repairs, security deposit, etc.)",
-          "Are you currently renting or have you recently moved out?",
-          "Have you received any notices from your landlord?",
-          "What is the condition of your rental property?",
-          "Have you documented any issues with photos or written communication?"
+          "What specific tenant rights issue are you facing? (eviction, repairs, security deposit, etc.)"
         ],
         "Probate and Estate Planning": [
-          "Are you dealing with probate of an estate or planning your own estate?",
-          "What is the approximate value of the estate or assets involved?",
-          "Do you have a will or other estate planning documents?",
-          "Are there any disputes or conflicts among family members?",
-          "What specific questions do you have about the probate process or estate planning?"
+          "Are you dealing with probate of an estate or planning your own estate?"
         ],
         "Special Education and IEP Advocacy": [
-          "What grade level is your child in and what type of school do they attend?",
-          "What specific learning challenges or disabilities does your child have?",
-          "Do you have an existing IEP or 504 plan?",
-          "What specific issues are you having with the school or district?",
-          "Have you had any recent meetings with school staff about your child's needs?"
+          "What grade level is your child in and what type of school do they attend?"
         ]
       },
       "domain": "northcarolinalegalservices.blawby.com",
@@ -139,8 +115,8 @@
       "profileImage": null,
       "webhooks": {
         "enabled": true,
-        "url": "https://app.blawby.com/api/webhooks/blawby",
-        "secret": "967cedd7beccff1739eb70831f04b849f869a0c9d906e1ff6029825d8bd907a1",
+        "url": "https://staging.blawby.com/webhooks/intake-form/01jq70jnstyfzevc6423czh50e/webhook-events",
+        "secret": "wh_f1be34ea3bff.eyJ0IjoiMDFqcTcwam5zdHlmemV2YzY0MjNjemg1MGUiLCJwIjoiaW50YWtlLWZvcm0ifQ==",
         "events": {
           "matterCreation": true,
           "matterDetails": true,
