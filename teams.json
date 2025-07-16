@@ -112,7 +112,7 @@
       "brandColor": "#059669",
       "accentColor": "#10b981",
       "introMessage": "Welcome to North Carolina Legal Services! I'm here to help you with affordable legal assistance in areas including Family Law, Small Business, Employment, Tenant Rights, Probate, and Special Education. I can answer your questions and help you schedule a consultation with our experienced attorneys. How can I assist you today?",
-      "profileImage": null,
+      "profileImage": "https://scontent-hkg4-1.cdninstagram.com/v/t51.2885-19/441050418_1463590637575412_1458196905202901706_n.jpg?stp=dst-jpg_s150x150_tt6&_nc_ht=scontent-hkg4-1.cdninstagram.com&_nc_cat=108&_nc_oc=Q6cZ2QF0Jc8LQw5sxV6eUzI-66HWrm1fC3itb0Yu26H9ze6YLM77-Xu4tgXkffGujoN5zeU&_nc_ohc=UZKStSJU4uQQ7kNvwHVxtZg&_nc_gid=vJ2Uh2xIGqmM4GNujY_eCQ&edm=AA5fTDYBAAAA&ccb=7-5&oh=00_AfSfDcqgeIph60K07ghFT7RpGPV3EQKtaPU8IDDGI6KnCg&oe=687D325A&_nc_sid=7edfe2",
       "webhooks": {
         "enabled": true,
         "url": "https://staging.blawby.com/webhooks/intake-form/01jq70jnstyfzevc6423czh50e/webhook-events",
