@@ -205,18 +205,32 @@ CREATE TABLE IF NOT EXISTS chat_logs (
   FOREIGN KEY (team_id) REFERENCES teams(id)
 );
 
--- Matter questions table for Q&A pairs from intake
+-- Matter questions table for Q&A pairs from intake (enhanced for conditional questions)
 CREATE TABLE IF NOT EXISTS matter_questions (
   id TEXT PRIMARY KEY,
   matter_id TEXT,
+  session_id TEXT, -- Link to question flow session
   team_id TEXT,
+  question_id TEXT, -- Unique identifier for the question (e.g., family_issue_type)
+  question_type TEXT DEFAULT 'text', -- Type of question: text, choice, date, email
+  question_options JSON, -- JSON array of options for choice questions
+  question_condition JSON, -- JSON object defining when this question should be asked
+  question_order INTEGER, -- Order of question in the flow
   question TEXT NOT NULL,
   answer TEXT NOT NULL,
   source TEXT DEFAULT 'ai-form', -- 'ai-form' | 'human-entry' | 'followup'
+  is_conditional BOOLEAN DEFAULT FALSE, -- Whether this question has conditional logic
+  condition_met BOOLEAN DEFAULT TRUE, -- Whether the condition was met when this question was asked
+  metadata JSON, -- Additional structured data
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (team_id) REFERENCES teams(id),
   FOREIGN KEY (matter_id) REFERENCES matters(id)
 );
+
+-- Add indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_matter_questions_matter_id ON matter_questions(matter_id);
+CREATE INDEX IF NOT EXISTS idx_matter_questions_question_id ON matter_questions(question_id);
+CREATE INDEX IF NOT EXISTS idx_matter_questions_session_id ON matter_questions(session_id);
 
 -- AI generated summaries table for markdown matter summaries
 CREATE TABLE IF NOT EXISTS ai_generated_summaries (
@@ -242,6 +256,68 @@ CREATE TABLE IF NOT EXISTS ai_feedback (
   FOREIGN KEY (team_id) REFERENCES teams(id)
 );
 
+-- Question Flow Management Tables --
+
+-- Question flow sessions table for tracking active question flows
+CREATE TABLE IF NOT EXISTS question_flow_sessions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  team_id TEXT NOT NULL,
+  service TEXT NOT NULL,
+  current_question_index INTEGER DEFAULT 0,
+  total_questions INTEGER DEFAULT 0,
+  applicable_questions JSON, -- Array of question IDs that are applicable based on conditions
+  answers JSON, -- Current answers for conditional logic evaluation
+  status TEXT DEFAULT 'active', -- 'active', 'completed', 'abandoned'
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME,
+  FOREIGN KEY (team_id) REFERENCES teams(id)
+);
+
+-- Add indexes for question flow sessions
+CREATE INDEX IF NOT EXISTS idx_question_flow_sessions_session_id ON question_flow_sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_question_flow_sessions_team_id ON question_flow_sessions(team_id);
+
+-- Question flow templates table for caching question configurations
+CREATE TABLE IF NOT EXISTS question_flow_templates (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  service TEXT NOT NULL,
+  template_version TEXT DEFAULT '1.0',
+  questions JSON NOT NULL, -- Full question structure with conditions
+  total_questions INTEGER NOT NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (team_id) REFERENCES teams(id)
+);
+
+-- Add unique constraint to prevent duplicate templates
+CREATE UNIQUE INDEX IF NOT EXISTS idx_question_flow_templates_unique 
+ON question_flow_templates(team_id, service, template_version);
+
+-- Question flow analytics table for performance tracking
+CREATE TABLE IF NOT EXISTS question_flow_analytics (
+  id TEXT PRIMARY KEY,
+  team_id TEXT NOT NULL,
+  service TEXT NOT NULL,
+  question_id TEXT NOT NULL,
+  question_type TEXT NOT NULL,
+  total_asked INTEGER DEFAULT 0,
+  total_answered INTEGER DEFAULT 0,
+  total_skipped INTEGER DEFAULT 0, -- Due to conditions not being met
+  average_time_to_answer REAL, -- in seconds
+  completion_rate REAL, -- percentage
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (team_id) REFERENCES teams(id)
+);
+
+-- Add indexes for analytics
+CREATE INDEX IF NOT EXISTS idx_question_flow_analytics_team_service ON question_flow_analytics(team_id, service);
+CREATE INDEX IF NOT EXISTS idx_question_flow_analytics_question_id ON question_flow_analytics(question_id);
+
 -- Webhook logs table for tracking webhook deliveries
 CREATE TABLE IF NOT EXISTS webhook_logs (
   id TEXT PRIMARY KEY,
@@ -265,6 +341,24 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
 -- Insert default team
 INSERT INTO teams (id, name, config) VALUES 
 ('test-team', 'Test Law Firm', '{"aiModel": "llama", "requiresPayment": false}');
+
+-- Views for easier querying --
+
+-- Question flow summary view
+CREATE VIEW question_flow_summary AS
+SELECT 
+  qfs.session_id,
+  qfs.team_id,
+  qfs.service,
+  qfs.current_question_index,
+  qfs.total_questions,
+  qfs.status,
+  COUNT(mq.id) as questions_answered,
+  qfs.created_at,
+  qfs.updated_at
+FROM question_flow_sessions qfs
+LEFT JOIN matter_questions mq ON qfs.session_id = mq.session_id
+GROUP BY qfs.id, qfs.session_id, qfs.team_id, qfs.service, qfs.current_question_index, qfs.total_questions, qfs.status, qfs.created_at, qfs.updated_at;
 
 -- Insert sample lawyers
 INSERT INTO lawyers (id, team_id, name, email, phone, specialties, role, hourly_rate, bar_number, license_state) VALUES 

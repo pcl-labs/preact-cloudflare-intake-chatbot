@@ -1,6 +1,7 @@
 import type { Env } from '../types';
 import { HttpErrors, handleError, createSuccessResponse } from '../errorHandler';
 import { parseJsonBody, createMatterRecord, storeMatterQuestion, storeAISummary, updateAISummary, updateMatterRecord, getMatterIdBySession } from '../utils';
+import { QuestionFlowService } from '../services/QuestionFlowService';
 
 interface MatterCreationRequest {
   teamId: string;
@@ -92,11 +93,29 @@ export async function handleMatterCreation(request: Request, env: Env, corsHeade
           });
         } else {
           // Service was selected, move to questions
-          const questions = teamConfig.serviceQuestions?.[body.service] || [
-            `Tell me more about your ${body.service} situation.`,
-            'When did this issue begin?',
-            'What outcome are you hoping for?'
-          ];
+          const serviceQuestions = teamConfig.serviceQuestions?.[body.service];
+          
+          // Handle both old array format and new conditional format
+          let questions: any[] = [];
+          let totalQuestions = 0;
+          
+          if (Array.isArray(serviceQuestions)) {
+            // Old format: simple array of strings
+            questions = serviceQuestions;
+            totalQuestions = questions.length;
+          } else if (serviceQuestions?.questions) {
+            // New format: conditional questions
+            questions = serviceQuestions.questions;
+            totalQuestions = questions.length;
+          } else {
+            // Fallback to default questions
+            questions = [
+              `Tell me more about your ${body.service} situation.`,
+              'When did this issue begin?',
+              'What outcome are you hoping for?'
+            ];
+            totalQuestions = questions.length;
+          }
 
           // Send matter creation webhook (when service is first selected)
           const { WebhookService } = await import('../services/WebhookService.js');
@@ -110,8 +129,8 @@ export async function handleMatterCreation(request: Request, env: Env, corsHeade
               service: body.service,
               qualityScore: quality,
               step: 'service-selected',
-              totalQuestions: questions.length,
-              hasQuestions: questions.length > 0
+              totalQuestions: totalQuestions,
+              hasQuestions: totalQuestions > 0
             }
           };
 
@@ -119,14 +138,36 @@ export async function handleMatterCreation(request: Request, env: Env, corsHeade
           webhookService.sendWebhook(body.teamId, 'matter_creation', matterCreationPayload, teamConfig)
             .catch(error => console.warn('Matter creation webhook failed:', error));
           
-          if (questions.length > 0) {
+          if (totalQuestions > 0) {
+            // Handle both old string format and new object format
+            const firstQuestion = questions[0];
+            const questionText = typeof firstQuestion === 'string' 
+              ? firstQuestion 
+              : firstQuestion.question;
+            
+            const questionType = typeof firstQuestion === 'string' 
+              ? 'text' 
+              : firstQuestion.type || 'text';
+            
+            const questionId = typeof firstQuestion === 'string' 
+              ? 'q1' 
+              : firstQuestion.id;
+            
+            const questionOptions = typeof firstQuestion === 'string' 
+              ? undefined 
+              : firstQuestion.options;
+            
             return new Response(JSON.stringify({
               step: 'questions',
-              message: questions[0],
+              message: questionText,
               currentQuestion: 1,
-              totalQuestions: questions.length,
+              totalQuestions: totalQuestions,
               selectedService: body.service,
-              qualityScore: quality
+              qualityScore: quality,
+              questionText: questionText,
+              questionType: questionType,
+              questionId: questionId,
+              questionOptions: questionOptions
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
@@ -144,54 +185,120 @@ export async function handleMatterCreation(request: Request, env: Env, corsHeade
         }
 
       case 'questions':
-        const questions = teamConfig.serviceQuestions?.[body.service!] || [
-          `Tell me more about your ${body.service} situation.`,
-          'When did this issue begin?',
-          'What outcome are you hoping for?'
-        ];
-        const currentIndex = body.currentQuestionIndex || 0;
+        const questionFlowService = new QuestionFlowService(env);
         
-        if (currentIndex < questions.length) {
-          return new Response(JSON.stringify({
-            step: 'questions',
-            message: questions[currentIndex],
-            currentQuestion: currentIndex + 1,
-            totalQuestions: questions.length,
-            selectedService: body.service,
-            qualityScore: quality,
-            questionText: questions[currentIndex] // Include the actual question text
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        } else {
-          // All questions answered, move to matter review step
-          const answers = body.answers || {};
-          const answerValues = Object.values(answers).filter(Boolean);
+        try {
+          // Get or create question flow session
+          const session = await questionFlowService.getOrCreateSession(
+            body.sessionId || crypto.randomUUID(),
+            body.teamId,
+            body.service!
+          );
           
-          // Auto-generate matter description from Q&A answers
-          const autoDescription = `${body.service} matter: ${answerValues.join('. ')}.`;
+          // If this is a new answer, store it
+          if (body.answers && Object.keys(body.answers).length > 0) {
+            const lastAnswerKey = Object.keys(body.answers)[Object.keys(body.answers).length - 1];
+            const lastAnswer = body.answers[lastAnswerKey];
+            
+            // Get the question data for the last answered question
+            const serviceQuestions = teamConfig.serviceQuestions?.[body.service!];
+            let questions: any[] = [];
+            
+            if (Array.isArray(serviceQuestions)) {
+              questions = serviceQuestions;
+            } else if (serviceQuestions?.questions) {
+              questions = serviceQuestions.questions;
+            }
+            
+            const currentQuestion = questions[session.currentQuestionIndex];
+            if (currentQuestion) {
+              await questionFlowService.storeAnswer(
+                session.sessionId,
+                typeof currentQuestion === 'string' ? `q${session.currentQuestionIndex + 1}` : currentQuestion.id,
+                typeof lastAnswer === 'string' ? lastAnswer : lastAnswer.answer,
+                {
+                  teamId: body.teamId,
+                  type: typeof currentQuestion === 'string' ? 'text' : currentQuestion.type,
+                  options: typeof currentQuestion === 'string' ? undefined : currentQuestion.options,
+                  condition: typeof currentQuestion === 'string' ? undefined : currentQuestion.condition,
+                  question: typeof currentQuestion === 'string' ? currentQuestion : currentQuestion.question
+                }
+              );
+            }
+          }
           
-          // Create enhanced body for quality assessment
-          const enhancedBody = {
-            ...body,
-            description: autoDescription,
-            answers: answers
-          };
+          // Get the next question
+          const nextQuestion = await questionFlowService.getNextQuestion(session.sessionId);
           
-          // Get quality assessment with the auto-generated description
-          const initialQuality = assessMatterQuality(enhancedBody);
-          
-          return new Response(JSON.stringify({
-            step: 'matter-review',
-            message: `Thank you for answering those questions. Let me review your matter and provide a summary.`,
-            selectedService: body.service,
-            qualityScore: initialQuality,
-            autoGeneratedDescription: autoDescription,
-            answers: answers
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+          if (nextQuestion) {
+            // Handle both old string format and new object format
+            const questionText = typeof nextQuestion === 'string' 
+              ? nextQuestion 
+              : nextQuestion.question;
+            
+            const questionType = typeof nextQuestion === 'string' 
+              ? 'text' 
+              : nextQuestion.type || 'text';
+            
+            const questionId = typeof nextQuestion === 'string' 
+              ? `q${session.currentQuestionIndex + 1}` 
+              : nextQuestion.id;
+            
+            const questionOptions = typeof nextQuestion === 'string' 
+              ? undefined 
+              : nextQuestion.options;
+            
+            return new Response(JSON.stringify({
+              step: 'questions',
+              message: questionText,
+              currentQuestion: session.currentQuestionIndex + 1,
+              totalQuestions: session.totalQuestions,
+              selectedService: body.service,
+              qualityScore: quality,
+              questionText: questionText,
+              questionType: questionType,
+              questionId: questionId,
+              questionOptions: questionOptions
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          } else {
+            // No more questions, complete the session
+            await questionFlowService.completeSession(session.sessionId);
+            
+            // Move to matter review step
+            const answers = body.answers || {};
+            const answerValues = Object.values(answers).filter(Boolean);
+            
+            // Auto-generate matter description from Q&A answers
+            const autoDescription = `${body.service} matter: ${answerValues.join('. ')}.`;
+            
+            // Create enhanced body for quality assessment
+            const enhancedBody = {
+              ...body,
+              description: autoDescription,
+              answers: answers
+            };
+            
+            // Get quality assessment with the auto-generated description
+            const initialQuality = assessMatterQuality(enhancedBody);
+            
+            return new Response(JSON.stringify({
+              step: 'matter-review',
+              message: `Thank you for answering those questions. Let me review your matter and provide a summary.`,
+              selectedService: body.service,
+              qualityScore: initialQuality,
+              autoGeneratedDescription: autoDescription,
+              answers: answers
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+        } catch (error) {
+          console.error('Question flow error:', error);
+          throw HttpErrors.internalServerError('Failed to process question flow');
         }
+        break;
 
       case 'matter-review':
         // Generate comprehensive matter summary and determine next steps

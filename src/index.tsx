@@ -93,6 +93,9 @@ interface MatterCreationData {
 	question?: string;
 	totalQuestions?: number;
 	currentQuestionIndex?: number;
+	questionType?: 'text' | 'choice' | 'date' | 'email';
+	questionId?: string;
+	questionOptions?: string[];
 }
 
 interface ChatMessage {
@@ -1574,26 +1577,35 @@ export function App() {
 								// Call API for service selection
 			const serviceResult = await handleMatterCreationAPI('service-selection', { service: selectedService });
 			
-			// Update matter state based on API response
-			setMatterState(prev => ({
-				...prev,
-				data: { ...prev.data, matterType: selectedService },
-				step: serviceResult.step === 'questions' ? 'ai-questions' : 'matter-details',
-				currentQuestionIndex: serviceResult.currentQuestion ? serviceResult.currentQuestion - 1 : 0
-			}));
-			
-			setTimeout(() => {
-				const aiResponse: ChatMessage = {
-					content: serviceResult.message,
-					isUser: false,
-					matterCreation: serviceResult.step === 'urgency-selection' ? {
-						type: 'urgency-selection',
-						availableServices: []
-					} : undefined,
-					qualityScore: serviceResult.qualityScore
-				};
-				setMessages(prev => [...prev, aiResponse]);
-			}, 800);
+								// Update matter state based on API response
+					setMatterState(prev => ({
+						...prev,
+						data: { ...prev.data, matterType: selectedService },
+						step: serviceResult.step === 'questions' ? 'ai-questions' : 'matter-details',
+						currentQuestionIndex: serviceResult.currentQuestion ? serviceResult.currentQuestion - 1 : 0
+					}));
+					
+					setTimeout(() => {
+						const aiResponse: ChatMessage = {
+							content: serviceResult.message,
+							isUser: false,
+							matterCreation: serviceResult.step === 'questions' ? {
+								type: 'ai-questions',
+								availableServices: [],
+								question: serviceResult.questionText,
+								totalQuestions: serviceResult.totalQuestions,
+								currentQuestionIndex: serviceResult.currentQuestion,
+								questionType: serviceResult.questionType,
+								questionId: serviceResult.questionId,
+								questionOptions: serviceResult.questionOptions
+							} : serviceResult.step === 'urgency-selection' ? {
+								type: 'urgency-selection',
+								availableServices: []
+							} : undefined,
+							qualityScore: serviceResult.qualityScore
+						};
+						setMessages(prev => [...prev, aiResponse]);
+					}, 800);
 					break;
 
 				case 'ai-questions':
@@ -1601,10 +1613,14 @@ export function App() {
 					const currentService = matterState.data.matterType;
 					const currentIndex = matterState.currentQuestionIndex || 0;
 					
-					// Store the answer with the question text for better context
+					// Get the current question ID from the last AI message
+					const lastAIMessage = messages.findLast(msg => !msg.isUser && msg.matterCreation?.type === 'ai-questions');
+					const questionId = lastAIMessage?.matterCreation?.questionId || `q${currentIndex + 1}`;
+					
+					// Store the answer with the question ID for conditional logic
 					const updatedAnswers = {
 						...matterState.data.aiAnswers,
-						[`q${currentIndex + 1}`]: {
+						[questionId]: {
 							question: matterState.data.currentQuestion || `Question ${currentIndex + 1}`,
 							answer: message
 						}
@@ -1647,7 +1663,17 @@ export function App() {
 									? {
 										...msg,
 										content: aiResult.message,
-										isLoading: false
+										isLoading: false,
+										matterCreation: {
+											type: 'ai-questions',
+											availableServices: [],
+											question: aiResult.questionText,
+											totalQuestions: aiResult.totalQuestions,
+											currentQuestionIndex: aiResult.currentQuestion,
+											questionType: aiResult.questionType,
+											questionId: aiResult.questionId,
+											questionOptions: aiResult.questionOptions
+										}
 									}
 									: msg
 							));

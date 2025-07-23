@@ -87,24 +87,78 @@
         "Special Education and IEP Advocacy"
       ],
       "serviceQuestions": {
-        "Family Law": [
-          "Thanks for reaching out. I know family situations can be really difficult. Can you tell me what type of family issue you're going through? (For example, divorce, custody, child support...)"
-        ],
-        "Small Business and Nonprofits": [
-          "What type of business entity are you operating or planning to start?"
-        ],
-        "Employment Law": [
-          "I'm sorry you're dealing with workplace issues - that can be really stressful. Can you tell me what's been happening at work? (For example, discrimination, harassment, wage problems...)"
-        ],
-        "Tenant Rights Law": [
-          "What specific tenant rights issue are you facing? (eviction, repairs, security deposit, etc.)"
-        ],
-        "Probate and Estate Planning": [
-          "Are you dealing with probate of an estate or planning your own estate?"
-        ],
-        "Special Education and IEP Advocacy": [
-          "What grade level is your child in and what type of school do they attend?"
-        ]
+        "Family Law": {
+          "questions": [
+            {
+              "id": "family_issue_type",
+              "question": "Thanks for reaching out. I know family situations can be really difficult. Can you tell me what type of family issue you're going through? (For example, divorce, custody, child support...)",
+              "type": "text"
+            },
+            {
+              "id": "opposing_party_name",
+              "question": "What is the Opposing Party's Full Legal Name (i.e. co-parent, spouse, former spouse, family member, etc.)?",
+              "type": "text"
+            },
+            {
+              "id": "email",
+              "question": "What is your email address?",
+              "type": "email"
+            },
+            {
+              "id": "relationship_status",
+              "question": "Are you and the opposing party currently: Never married, Married, Separated, or Divorced?",
+              "type": "choice",
+              "options": ["Never married", "Married", "Separated", "Divorced"]
+            },
+            {
+              "id": "marriage_date",
+              "question": "What is the date that you and the opposing party became married?",
+              "type": "date",
+              "condition": {
+                "field": "relationship_status",
+                "value": "Married"
+              }
+            },
+            {
+              "id": "separation_date",
+              "question": "What is the date that you and the opposing party separated?",
+              "type": "date",
+              "condition": {
+                "field": "relationship_status",
+                "value": "Separated"
+              }
+            },
+            {
+              "id": "divorce_date",
+              "question": "What is the date that you and the opposing party divorced?",
+              "type": "date",
+              "condition": {
+                "field": "relationship_status",
+                "value": "Divorced"
+              }
+            },
+            {
+              "id": "has_children",
+              "question": "Do you and the Opposing Party have children?",
+              "type": "choice",
+              "options": ["Yes", "No"]
+            },
+            {
+              "id": "children_info",
+              "question": "What are the names and dates of birth of your children?",
+              "type": "text",
+              "condition": {
+                "field": "has_children",
+                "value": "Yes"
+              }
+            }
+          ]
+        },
+        "Small Business and Nonprofits": [],
+        "Employment Law": [],
+        "Tenant Rights Law": [],
+        "Probate and Estate Planning": [],
+        "Special Education and IEP Advocacy": []
       },
       "domain": "northcarolinalegalservices.blawby.com",
       "description": "Affordable, comprehensive legal services for North Carolina. Family Law, Small Business, Employment, Tenant Rights, Probate, Special Education, and more.",
