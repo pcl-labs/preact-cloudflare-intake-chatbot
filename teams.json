@@ -1,6 +1,7 @@
 [
   {
-    "id": "blawby-ai",
+    "id": "01K0TNGNKTM4Q0AG0XF0A8ST0Q",
+    "slug": "blawby-ai",
     "name": "Blawby AI",
     "config": {
       "aiModel": "llama",
@@ -71,7 +72,8 @@
     }
   },
   {
-    "id": "north-carolina-legal-services",
+    "id": "01K0TNGNKNJEP8EPKHXAQV4S0R",
+    "slug": "north-carolina-legal-services",
     "name": "North Carolina Legal Services",
     "config": {
       "aiModel": "llama",
